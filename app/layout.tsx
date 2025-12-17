@@ -12,9 +12,18 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://memereceipts.com'),
   title: 'Meme Receipts',
   description: 'Watch Solana meme coin trades print as receipts in real-time',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/apple-icon.png',
+  },
   openGraph: {
     title: 'Meme Receipts',
     description: 'Watch Solana meme coin trades print as receipts in real-time',
+    url: 'https://memereceipts.com',
+    siteName: 'Meme Receipts',
     images: [
       {
         url: '/link-preview.png',
