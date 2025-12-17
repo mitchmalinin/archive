@@ -171,7 +171,7 @@ export function CandleReceipt({ candle, receiptNumber, isFirst, showSignature }:
 
           {/* Expand indicator - only show if there are trades to view */}
           {hasTrades && (
-            <div className="text-center text-xs text-gray-500 pt-1">
+            <div className="text-center text-xs text-gray-500 pt-3 pb-1">
               [ {isExpanded ? 'HIDE ORDERS' : `VIEW ${candle.trades.length} ORDERS`} ]
             </div>
           )}
