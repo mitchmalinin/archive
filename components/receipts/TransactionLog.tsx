@@ -4,7 +4,7 @@ import { useCandleStore } from '@/stores/candleStore';
 import { useTokenStore } from '@/stores/tokenStore';
 import { ANIMATION_SPEEDS, useUIStore } from '@/stores/uiStore';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CandleReceipt } from './CandleReceipt';
 import { TokenIntroReceipt } from './TokenIntroReceipt';
 
@@ -15,6 +15,20 @@ export function TransactionLog() {
   const showTestReceipt = useUIStore((state) => state.showTestReceipt);
   const showTokenIntro = useUIStore((state) => state.showTokenIntro);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Keep rendering test receipt area during exit animation (syncs with POSTerminal)
+  const [shouldRenderTestReceipt, setShouldRenderTestReceipt] = useState(showTestReceipt);
+  useEffect(() => {
+    if (!showTestReceipt && shouldRenderTestReceipt) {
+      // Store says hide, but keep blocking for exit animation duration
+      const timer = setTimeout(() => {
+        setShouldRenderTestReceipt(false);
+      }, 2000); // Match POSTerminal exit animation duration
+      return () => clearTimeout(timer);
+    } else if (showTestReceipt && !shouldRenderTestReceipt) {
+      setShouldRenderTestReceipt(true);
+    }
+  }, [showTestReceipt, shouldRenderTestReceipt]);
 
   // Show all candles - they print simultaneously on both sides
   const displayCandles = [...completedCandles].reverse();
@@ -42,9 +56,9 @@ export function TransactionLog() {
             className="h-auto lg:h-full overflow-visible lg:overflow-y-auto overflow-x-hidden flex justify-center"
           >
             <div className="w-full max-w-[300px] px-6 lg:px-0">
-              {/* Token Intro + Receipts - only show when test receipt is done */}
-              {!showTestReceipt && (
-                <AnimatePresence initial={false} mode="popLayout">
+              {/* Token Intro + Receipts - only show when test receipt exit animation is done */}
+              {!shouldRenderTestReceipt && (
+                <AnimatePresence mode="popLayout">
                   <motion.div
                     key={useTokenStore.getState().selectedToken?.address || 'empty'}
                     initial={{ opacity: 1 }}

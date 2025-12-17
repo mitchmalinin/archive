@@ -208,16 +208,16 @@ export function POSTerminal() {
   // Handle token intro receipt - stays as header, doesn't fall off
   const introTriggerRef = useRef<number>(0) // Track trigger time to prevent double fires
 
-  // Play sound when intro triggers
+  // Play sound when intro actually starts animating (after test receipt exit is done)
   useEffect(() => {
-    if (showTokenIntro) {
+    if (showTokenIntro && !shouldRenderTestReceipt) {
       const now = Date.now()
       // Prevent double trigger within 500ms (React StrictMode protection)
       if (now - introTriggerRef.current < 500) return
       introTriggerRef.current = now
       playReceiptPrinting() // Play print sound
     }
-  }, [showTokenIntro, playReceiptPrinting])
+  }, [showTokenIntro, shouldRenderTestReceipt, playReceiptPrinting])
 
 
   // Play receipt printing sound when a new candle completes
