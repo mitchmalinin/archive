@@ -1,6 +1,6 @@
 'use client'
 
-import { getTrendingTokens, searchTokens as dexSearch, type DexPair } from '@/lib/api/dexscreener';
+import { searchTokens as dexSearch, getTrendingTokens, type DexPair } from '@/lib/api/dexscreener';
 import { formatPrice } from '@/lib/utils';
 import { useReceiptStore } from '@/stores/receiptStore';
 import { useTokenStore } from '@/stores/tokenStore';
@@ -121,6 +121,7 @@ export function DesktopFloatingBar() {
     <motion.div
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1], delay: 0.2 }}
       className="absolute top-[20%] left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3 w-[380px] pointer-events-auto"
     >
       {/* Main Tracking Display */}

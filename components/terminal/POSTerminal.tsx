@@ -209,7 +209,12 @@ export function POSTerminal() {
   const animationDuration = ANIMATION_SPEEDS[animationSpeedIndex].duration
 
   return (
-    <div className="relative flex flex-col h-auto lg:h-full">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
+      className="flex flex-col h-full w-full max-w-md mx-auto relative z-10"
+    >
       {/* Wrapper for Mobile - keeps POS and Header together */}
       <div className="relative z-40 bg-[#e5e5e5] dark:bg-[#050505] pt-20 lg:static lg:bg-transparent lg:p-0 lg:z-auto w-full flex flex-col items-center">
         
@@ -415,6 +420,6 @@ export function POSTerminal() {
         <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#e5e5e5]/60 dark:from-[#050505]/60 to-transparent pointer-events-none z-30 hidden lg:block" />
       </div>
 
-    </div>
+    </motion.div>
   )
 }
