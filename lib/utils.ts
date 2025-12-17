@@ -85,3 +85,37 @@ export function getMinuteStart(timestamp: number): number {
 export function padNumber(num: number, length: number): string {
   return String(num).padStart(length, '0');
 }
+
+/**
+ * Get candle duration in milliseconds for a timeframe
+ */
+export function getCandleDurationMs(timeframe: string): number {
+  const durations: Record<string, number> = {
+    '30s': 30_000,
+    '1m': 60_000,
+    '5m': 5 * 60_000,
+    '15m': 15 * 60_000,
+    '1h': 60 * 60_000,
+    '4h': 4 * 60 * 60_000,
+  };
+  return durations[timeframe] || 30_000;
+}
+
+/**
+ * Get current candle boundary (wall-clock aligned)
+ */
+export function getCurrentCandleBoundary(timeframe: string): number {
+  const durationMs = getCandleDurationMs(timeframe);
+  const now = Date.now();
+  return Math.floor(now / durationMs) * durationMs;
+}
+
+/**
+ * Get seconds until next candle boundary (wall-clock timer)
+ */
+export function getSecondsUntilNextCandle(timeframe: string): number {
+  const durationMs = getCandleDurationMs(timeframe);
+  const boundary = getCurrentCandleBoundary(timeframe);
+  const nextBoundary = boundary + durationMs;
+  return Math.max(0, Math.floor((nextBoundary - Date.now()) / 1000));
+}

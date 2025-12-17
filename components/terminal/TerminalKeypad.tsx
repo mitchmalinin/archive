@@ -1,16 +1,29 @@
 'use client';
 
+import { useSound } from '@/hooks/useSound';
 import { useUIStore } from '@/stores/uiStore';
 
 export function TerminalKeypad() {
   const { filter, setFilter, toggleMute, isMuted } = useUIStore();
+  const { playButtonPress } = useSound();
 
   const handleRedButton = () => {
+    playButtonPress();
     setFilter(filter === 'sells' ? 'all' : 'sells');
   };
 
   const handleGreenButton = () => {
+    playButtonPress();
     setFilter(filter === 'buys' ? 'all' : 'buys');
+  };
+
+  const handleYellowButton = () => {
+    playButtonPress();
+    toggleMute();
+  };
+
+  const handleNumberButton = () => {
+    playButtonPress();
   };
 
   const numberButtons = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -21,6 +34,7 @@ export function TerminalKeypad() {
       {numberButtons.map((num) => (
         <button
           key={num}
+          onClick={handleNumberButton}
           className="bg-gray-200 dark:bg-[#252525] h-10 rounded shadow-sm border-b-4 border-gray-300 dark:border-black text-gray-700 dark:text-white font-bold font-mono text-lg btn-press"
         >
           {num}
@@ -41,7 +55,7 @@ export function TerminalKeypad() {
 
       {/* Yellow button (mute) */}
       <button
-        onClick={toggleMute}
+        onClick={handleYellowButton}
         className={`h-10 rounded shadow-sm border-b-4 text-black font-bold text-xs flex items-center justify-center btn-press transition-all ${
           isMuted
             ? 'bg-yellow-600 border-yellow-800 ring-2 ring-yellow-400'

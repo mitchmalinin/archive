@@ -1,109 +1,339 @@
 'use client'
 
 import { formatPrice } from '@/lib/utils';
-import { useCandleStore } from '@/stores/candleStore';
 import { useReceiptStore } from '@/stores/receiptStore';
+import { useTokenStore } from '@/stores/tokenStore';
 import { useUIStore } from '@/stores/uiStore';
-import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { getTrendingTokens, type DexPair } from '@/lib/api/dexscreener';
 
 export function DesktopFloatingBar() {
-  const { currentCandle } = useCandleStore();
   const { summaryCount } = useReceiptStore();
-  
-  // Local timer state to ensure smooth updates
-  const [secondsRemaining, setSecondsRemaining] = useState(0);
 
+  // Token store
+  const {
+    selectedToken,
+    selectedPair,
+    searchResults,
+    isSearching,
+    isLoading,
+    isConnected,
+    error,
+    setSearchQuery,
+    searchTokens,
+    loadToken,
+    loadFromPair,
+    clearSearch,
+  } = useTokenStore();
+
+  // Local state
+  const [inputValue, setInputValue] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [trendingTokens, setTrendingTokens] = useState<DexPair[]>([]);
+  const [isLoadingTrending, setIsLoadingTrending] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch trending tokens on mount
   useEffect(() => {
-    const updateTimer = () => {
-      if (!currentCandle) return;
-      const now = Date.now();
-      const end = currentCandle.endTime;
-      const remaining = Math.max(0, Math.floor((end - now) / 1000));
-      setSecondsRemaining(remaining);
+    const fetchTrending = async () => {
+      setIsLoadingTrending(true);
+      try {
+        const trending = await getTrendingTokens();
+        setTrendingTokens(trending);
+      } catch (error) {
+        console.error('Failed to fetch trending:', error);
+      } finally {
+        setIsLoadingTrending(false);
+      }
+    };
+    fetchTrending();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node) &&
+        !inputRef.current?.contains(e.target as Node)
+      ) {
+        setShowDropdown(false);
+      }
     };
 
-    updateTimer(); // Initial update
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [currentCandle]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-  const change = currentCandle && currentCandle.tradeCount > 0
-    ? ((currentCandle.close - currentCandle.open) / currentCandle.open) * 100
-    : 0;
-  const isPositive = change >= 0;
+  // Debounced search
+  const handleInputChange = useCallback(
+    (value: string) => {
+      setInputValue(value);
+      setSearchQuery(value);
+
+      // Clear previous timeout
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+
+      // Debounce search
+      if (value.length >= 2) {
+        searchTimeoutRef.current = setTimeout(() => {
+          searchTokens(value);
+          setShowDropdown(true);
+        }, 300);
+      } else {
+        clearSearch();
+        setShowDropdown(false);
+      }
+    },
+    [setSearchQuery, searchTokens, clearSearch]
+  );
+
+  // Handle load button click
+  const handleLoad = useCallback(async () => {
+    if (!inputValue.trim()) return;
+
+    setShowDropdown(false);
+    const success = await loadToken(inputValue.trim());
+    if (success) {
+      setInputValue('');
+    }
+  }, [inputValue, loadToken]);
+
+  // Handle search result selection - use pair directly (no re-fetch)
+  const handleSelectResult = useCallback(
+    async (pair: DexPair) => {
+      setShowDropdown(false);
+      setInputValue(pair.baseToken.address);
+      await loadFromPair(pair);
+    },
+    [loadFromPair]
+  );
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 w-[380px] pointer-events-auto"
     >
-      {/* Main Stats Bar */}
-      <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-5 shadow-2xl relative overflow-hidden group">
+      {/* Main Tracking Display */}
+      <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-5 shadow-2xl relative overflow-hidden">
         {/* Scanline effect */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 pointer-events-none bg-[length:100%_4px,3px_100%]" />
-        
-        {/* Header Row */}
-        <div className="flex justify-between items-center mb-4 relative z-10">
-          <div className="flex items-center gap-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
-            <span className="font-mono text-sm text-gray-200 tracking-wider font-bold">
-              RECORDING #{String(summaryCount + 1).padStart(6, '0')}
+
+        {/* Top Row: Tracking status */}
+        <div className="flex justify-between items-center mb-3 relative z-10">
+          <div className="flex items-center gap-2">
+            {/* Connection indicator */}
+            <span
+              className={`w-2 h-2 rounded-full ${
+                selectedToken
+                  ? 'bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]'
+                  : 'bg-gray-600'
+              }`}
+            />
+            <span className="font-mono text-[10px] text-gray-500 tracking-wider">
+              {selectedToken ? 'TRACKING' : 'NO TOKEN'}
             </span>
           </div>
-          <div className="font-mono text-sm text-gray-400 font-bold tabular-nums bg-gray-900/50 px-2 py-0.5 rounded border border-gray-800">
-            {String(Math.floor(secondsRemaining / 60)).padStart(2, '0')}:{String(secondsRemaining % 60).padStart(2, '0')}
-          </div>
         </div>
 
-        {/* Price Row */}
-        <div className="flex justify-between items-end relative z-10 mb-2">
-          <div className="font-mono text-3xl font-bold text-white tracking-tight">
-            {currentCandle ? formatPrice(currentCandle.close) : '$0.000000'}
-          </div>
-          <div className={`font-mono text-base font-bold ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-            {isPositive ? '+' : ''}{change.toFixed(2)}%
-          </div>
+        {/* Large Ticker Display */}
+        <div className="text-center py-4 relative z-10">
+          {selectedToken ? (
+            <div className="font-mono text-4xl font-bold text-green-400 tracking-tight">
+              ${selectedToken.symbol.toUpperCase()}
+            </div>
+          ) : (
+            <div className="font-mono text-2xl font-bold text-gray-600 tracking-tight">
+              SELECT TOKEN
+            </div>
+          )}
         </div>
 
-        {/* Mini Stats Grid */}
-        <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-gray-800/50 relative z-10">
-          <div className="text-center">
-            <div className="text-[10px] text-gray-500 font-mono mb-1">TRADES</div>
-            <div className="text-xs text-white font-mono font-bold">{currentCandle?.tradeCount || 0}</div>
-          </div>
-          <div className="text-center">
-            <div className="text-[10px] text-gray-500 font-mono mb-1">BUYS</div>
-            <div className="text-xs text-green-500 font-mono font-bold">{currentCandle?.buyCount || 0}</div>
-          </div>
-          <div className="text-center">
-            <div className="text-[10px] text-gray-500 font-mono mb-1">SELLS</div>
-            <div className="text-xs text-red-500 font-mono font-bold">{currentCandle?.sellCount || 0}</div>
-          </div>
-          <div className="text-center">
-            <div className="text-[10px] text-gray-500 font-mono mb-1">VOL</div>
-            <div className="text-xs text-blue-400 font-mono font-bold">{currentCandle?.volume.toFixed(2) || '0.00'}</div>
+        {/* Receipt Number */}
+        <div className="text-center pt-3 border-t border-gray-800/50 relative z-10">
+          <div className="font-mono text-[10px] text-gray-500 mb-1">NEXT RECEIPT</div>
+          <div className="font-mono text-lg text-white font-bold tracking-widest">
+            #{String(summaryCount + 1).padStart(6, '0')}
           </div>
         </div>
       </div>
 
       {/* Token Input Bar */}
-      <div className="bg-[#0a0a0a] border border-gray-800 rounded-lg p-1 shadow-xl flex items-center gap-2 relative overflow-hidden">
-        <div className="absolute inset-0 bg-green-500/5 pointer-events-none" />
-        <div className="bg-gray-900/50 rounded px-2 py-1.5 ml-1">
-          <span className="font-mono text-[10px] text-green-500 font-bold">CA:</span>
+      <div className="relative">
+        <div className="bg-[#0a0a0a] border border-gray-800 rounded-lg p-1 shadow-xl flex items-center gap-2 relative overflow-hidden">
+          <div className="absolute inset-0 bg-green-500/5 pointer-events-none" />
+          <div className="bg-gray-900/50 rounded px-2 py-1.5 ml-1">
+            <span className="font-mono text-[10px] text-green-500 font-bold">CA:</span>
+          </div>
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleLoad();
+              if (e.key === 'Escape') setShowDropdown(false);
+            }}
+            placeholder="Enter token address or search..."
+            className="bg-transparent border-none outline-none text-xs font-mono text-gray-300 w-full placeholder:text-gray-700 relative z-10"
+          />
+          <button
+            onClick={handleLoad}
+            disabled={isLoading || !inputValue.trim()}
+            className={`text-black text-[10px] font-bold px-3 py-1.5 rounded transition-colors relative z-10 ${
+              isLoading
+                ? 'bg-gray-600 cursor-wait'
+                : 'bg-green-600 hover:bg-green-500'
+            }`}
+          >
+            {isLoading ? 'LOADING...' : 'LOAD'}
+          </button>
         </div>
-        <input 
-          type="text" 
-          placeholder="Enter token address..."
-          className="bg-transparent border-none outline-none text-xs font-mono text-gray-300 w-full placeholder:text-gray-700"
-          readOnly
-        />
-        <button className="bg-green-600 hover:bg-green-500 text-black text-[10px] font-bold px-3 py-1.5 rounded transition-colors">
-          LOAD
-        </button>
+
+        {/* Search Results Dropdown */}
+        <AnimatePresence>
+          {showDropdown && searchResults.length > 0 && (
+            <motion.div
+              ref={dropdownRef}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute top-full left-0 right-0 mt-1 bg-[#0a0a0a] border border-gray-800 rounded-lg shadow-xl overflow-hidden z-50"
+            >
+              {searchResults.map((pair) => {
+                const liquidity = pair.liquidity?.usd || 0;
+                const liquidityLabel = liquidity >= 1000000 ? `$${(liquidity / 1000000).toFixed(1)}M` :
+                                       liquidity >= 1000 ? `$${(liquidity / 1000).toFixed(0)}K` :
+                                       `$${liquidity.toFixed(0)}`;
+                return (
+                  <button
+                    key={pair.pairAddress}
+                    onClick={() => handleSelectResult(pair)}
+                    className="w-full px-3 py-2 text-left hover:bg-gray-800/50 transition-colors border-b border-gray-800/50 last:border-0"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs text-green-400 font-bold">
+                          ${pair.baseToken.symbol.toUpperCase()}
+                        </span>
+                        <span className="font-mono text-[10px] text-gray-500">
+                          {pair.baseToken.name.slice(0, 16)}
+                          {pair.baseToken.name.length > 16 && '...'}
+                        </span>
+                      </div>
+                      <div className="text-right flex items-center gap-2">
+                        <div className="font-mono text-[9px] text-blue-400/70">
+                          LIQ {liquidityLabel}
+                        </div>
+                        <div className={`font-mono text-[10px] ${
+                          (pair.priceChange?.h24 || 0) >= 0 ? 'text-green-500' : 'text-red-500'
+                        }`}>
+                          {(pair.priceChange?.h24 || 0) >= 0 ? '+' : ''}
+                          {(pair.priceChange?.h24 || 0).toFixed(1)}%
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                      <div className="font-mono text-[9px] text-gray-600 truncate max-w-[200px]">
+                        {pair.baseToken.address}
+                      </div>
+                      <div className="font-mono text-[10px] text-gray-400">
+                        {formatPrice(parseFloat(pair.priceUsd))}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Search loading indicator */}
+        {isSearching && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-[#0a0a0a] border border-gray-800 rounded-lg p-3 text-center">
+            <span className="font-mono text-[10px] text-gray-500">Searching...</span>
+          </div>
+        )}
+
+        {/* Error display */}
+        {error && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-red-900/20 border border-red-800/50 rounded-lg p-2 text-center">
+            <span className="font-mono text-[10px] text-red-400">{error}</span>
+          </div>
+        )}
       </div>
+
+      {/* Trending Tokens */}
+      {trendingTokens.length > 0 && !showDropdown && !isSearching && (
+        <div className="bg-[#0a0a0a] border border-gray-800 rounded-lg shadow-xl overflow-hidden">
+          {/* Sticky Header */}
+          <div className="sticky top-0 bg-[#0a0a0a] px-3 pt-3 pb-2 border-b border-gray-800/50 z-10">
+            <div className="font-mono text-[10px] text-gray-500 flex items-center gap-1">
+              <span className="text-yellow-500">🔥</span> TRENDING ON SOLANA
+            </div>
+          </div>
+          {/* Scrollable Token List */}
+          <div className="max-h-[300px] overflow-y-auto p-3 space-y-1">
+            {trendingTokens.slice(0, 10).map((pair) => {
+              const liquidity = pair.liquidity?.usd || 0;
+              const liquidityLabel = liquidity >= 1000000 ? `$${(liquidity / 1000000).toFixed(1)}M` :
+                                     liquidity >= 1000 ? `$${(liquidity / 1000).toFixed(0)}K` :
+                                     `$${liquidity.toFixed(0)}`;
+              return (
+                <button
+                  key={pair.pairAddress}
+                  onClick={() => handleSelectResult(pair)}
+                  className="w-full px-2 py-1.5 text-left hover:bg-gray-800/50 transition-colors rounded"
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-green-400 font-bold">
+                        ${pair.baseToken.symbol.toUpperCase()}
+                      </span>
+                      <span className="font-mono text-[10px] text-gray-500 truncate max-w-[100px]">
+                        {pair.baseToken.name}
+                      </span>
+                    </div>
+                    <div className="text-right flex items-center gap-2">
+                      <div className="font-mono text-[9px] text-blue-400/70">
+                        LIQ {liquidityLabel}
+                      </div>
+                      <div className={`font-mono text-[10px] ${
+                        (pair.priceChange?.h24 || 0) >= 0 ? 'text-green-500' : 'text-red-500'
+                      }`}>
+                        {(pair.priceChange?.h24 || 0) >= 0 ? '+' : ''}
+                        {(pair.priceChange?.h24 || 0).toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center mt-0.5">
+                    <div className="font-mono text-[9px] text-gray-600 truncate max-w-[180px]">
+                      {pair.baseToken.address}
+                    </div>
+                    <div className="font-mono text-[10px] text-gray-400">
+                      {formatPrice(parseFloat(pair.priceUsd))}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Loading trending indicator */}
+      {isLoadingTrending && trendingTokens.length === 0 && (
+        <div className="bg-[#0a0a0a] border border-gray-800 rounded-lg p-3 text-center">
+          <span className="font-mono text-[10px] text-gray-500">Loading trending...</span>
+        </div>
+      )}
     </motion.div>
   );
 }

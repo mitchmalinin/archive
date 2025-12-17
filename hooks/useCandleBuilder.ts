@@ -16,9 +16,10 @@ interface UseCandleBuilderOptions {
 /**
  * Create an empty candle for the given start time
  */
-function createEmptyCandle(startTime: number): Candle {
+function createEmptyCandle(startTime: number, candleNumber: number): Candle {
   return {
     id: generateId(),
+    candleNumber,
     startTime,
     endTime: startTime + CANDLE_DURATION_MS,
     open: 0,
@@ -32,7 +33,6 @@ function createEmptyCandle(startTime: number): Candle {
     buyCount: 0,
     sellCount: 0,
     trades: [],
-    hasWhale: false,
     fees: {
       total: 0,
       creator: 0,
@@ -67,7 +67,6 @@ function updateCandleWithTrade(candle: Candle, trade: Trade): Candle {
     buyCount: trade.side === 'buy' ? candle.buyCount + 1 : candle.buyCount,
     sellCount: trade.side === 'sell' ? candle.sellCount + 1 : candle.sellCount,
     trades: [...candle.trades, trade],
-    hasWhale: candle.hasWhale || trade.isWhale, // Mark if any trade is a whale
     fees: {
       total: candle.fees.total + fee,
       creator: candle.fees.creator + fee * 0.3, // 30% to creator
@@ -156,7 +155,7 @@ export function useCandleBuilder(options: UseCandleBuilderOptions = {}) {
       const now = Date.now();
       candleStartTimeRef.current = now;
       processedTradeIdsRef.current.clear();
-      setCurrentCandle(createEmptyCandle(now));
+      setCurrentCandle(createEmptyCandle(now, summaryCountRef.current + 1));
       isCompletingRef.current = false;
     }, 650);
   }, [currentCandle, handleCompleteCandle, setCurrentCandle]);
@@ -175,22 +174,14 @@ export function useCandleBuilder(options: UseCandleBuilderOptions = {}) {
     let candle = currentCandle;
 
     if (!candle) {
-      candle = createEmptyCandle(candleStartTimeRef.current);
+      candle = createEmptyCandle(candleStartTimeRef.current, summaryCountRef.current + 1);
       setCurrentCandle(candle);
     }
 
     // Update candle with new trade
     const updatedCandle = updateCandleWithTrade(candle, latestTrade);
     updateCurrentCandle(updatedCandle);
-
-    // If this is a whale trade, immediately print the receipt
-    if (latestTrade.isWhale && !isCompletingRef.current) {
-      // Small delay to let the UI update with the whale trade first
-      setTimeout(() => {
-        forceCompleteCandle();
-      }, 100);
-    }
-  }, [latestTrade, currentCandle, setCurrentCandle, updateCurrentCandle, forceCompleteCandle]);
+  }, [latestTrade, currentCandle, setCurrentCandle, updateCurrentCandle]);
 
   // Candle completion timer (every 30 seconds)
   useEffect(() => {
@@ -211,14 +202,14 @@ export function useCandleBuilder(options: UseCandleBuilderOptions = {}) {
           setTimeout(() => {
             candleStartTimeRef.current = currentPeriodStart;
             processedTradeIdsRef.current.clear();
-            setCurrentCandle(createEmptyCandle(currentPeriodStart));
+            setCurrentCandle(createEmptyCandle(currentPeriodStart, summaryCountRef.current + 1));
             isCompletingRef.current = false;
           }, 650);
         } else {
           // No trades, just reset the timer
           candleStartTimeRef.current = currentPeriodStart;
           processedTradeIdsRef.current.clear();
-          setCurrentCandle(createEmptyCandle(currentPeriodStart));
+          setCurrentCandle(createEmptyCandle(currentPeriodStart, summaryCountRef.current + 1));
         }
       }
     };

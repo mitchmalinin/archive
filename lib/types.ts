@@ -7,12 +7,13 @@ export interface Trade {
   solAmount: number;
   tokenAmount: number;
   price: number;
-  isWhale: boolean; // >= 1 SOL
+  signature?: string; // Transaction signature for Solscan link (real txs only)
 }
 
 // OHLC candle data
 export interface Candle {
   id: string;
+  candleNumber: number; // Sequential candle number for display
   startTime: number;
   endTime: number;
   open: number;
@@ -26,7 +27,6 @@ export interface Candle {
   buyCount: number;
   sellCount: number;
   trades: Trade[];
-  hasWhale: boolean; // True if candle contains a whale trade
   fees: {
     total: number;
     creator: number;
@@ -43,16 +43,7 @@ export interface SummaryReceipt {
   isExpanded: boolean;
 }
 
-export interface WhaleReceipt {
-  type: 'whale';
-  id: string;
-  alertNumber: number;
-  trade: Trade;
-  marketCap: number;
-  percentSupply: number;
-}
-
-export type Receipt = SummaryReceipt | WhaleReceipt;
+export type Receipt = SummaryReceipt;
 
 // Filter state
 export type TradeFilter = 'all' | 'buys' | 'sells';

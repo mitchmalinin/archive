@@ -1,22 +1,22 @@
-import type { Metadata } from "next";
-import { Space_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from 'next'
+import { Space_Mono } from 'next/font/google'
+import './globals.css'
 
 const spaceMono = Space_Mono({
-  weight: ["400", "700"],
-  subsets: ["latin"],
-  variable: "--font-space-mono",
-});
+  weight: ['400', '700'],
+  subsets: ['latin'],
+  variable: '--font-space-mono',
+})
 
 export const metadata: Metadata = {
-  title: "RECEIPT - Live Trading Interface",
-  description: "Interactive trading interface for Solana tokens",
-};
+  title: 'Meme Receipts | {token}',
+  description: 'Interactive trading interface for Solana token: {token}',
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html lang="en" className="dark">
@@ -26,9 +26,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className={`${spaceMono.variable} antialiased`}>
-        {children}
-      </body>
+      <body className={`${spaceMono.variable} antialiased`}>{children}</body>
     </html>
-  );
+  )
 }

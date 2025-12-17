@@ -21,6 +21,7 @@ export function TerminalChart() {
         background: { color: 'transparent' },
         textColor: '#22c55e',
         fontSize: 10,
+        attributionLogo: false,
       },
       grid: {
         vertLines: { color: 'rgba(34, 197, 94, 0.1)' },
@@ -47,6 +48,8 @@ export function TerminalChart() {
         borderColor: 'rgba(34, 197, 94, 0.2)',
         timeVisible: true,
         secondsVisible: false,
+        rightOffset: 3, // Space on the right for the current candle to grow
+        barSpacing: 8, // Wider bars for better visibility
       },
       handleScroll: false,
       handleScale: false,
@@ -132,9 +135,14 @@ export function TerminalChart() {
 
     seriesRef.current.setData(formattedData);
 
-    // Fit content only when completed candles change (not on every current candle update)
-    if (chartRef.current && chartData.length > 0) {
-      chartRef.current.timeScale().fitContent();
+    // Zoom in to show only the last ~15 candles for extreme close-up of current action
+    if (chartRef.current && formattedData.length > 0) {
+      const visibleCandles = 15;
+      const startIndex = Math.max(0, formattedData.length - visibleCandles);
+      const from = formattedData[startIndex].time;
+      const to = formattedData[formattedData.length - 1].time;
+
+      chartRef.current.timeScale().setVisibleRange({ from, to });
     }
   }, [chartData, currentCandle]);
 

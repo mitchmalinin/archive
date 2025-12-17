@@ -5,18 +5,16 @@ import { Footer } from '@/components/layout/Footer';
 import { Header } from '@/components/layout/Header';
 import { TransactionLog } from '@/components/receipts/TransactionLog';
 import { POSTerminal } from '@/components/terminal/POSTerminal';
-import { useCandleBuilder } from '@/hooks/useCandleBuilder';
-import { useTradeStream } from '@/hooks/useTradeStream';
+import { useLiveTokenData } from '@/hooks/useLiveTokenData';
+import { useSolanaTrackerData } from '@/hooks/useSolanaTrackerData';
 import { useCandleStore } from '@/stores/candleStore';
 import { useReceiptStore } from '@/stores/receiptStore';
-import { useUIStore } from '@/stores/uiStore';
 import { useEffect, useState } from 'react';
 
 export default function Home() {
   const [isDark, setIsDark] = useState(true);
   const resetReceipts = useReceiptStore((state) => state.reset);
   const resetCandles = useCandleStore((state) => state.reset);
-  const setPosReceiptLimit = useUIStore((state) => state.setPosReceiptLimit);
 
   // Clear all data on page refresh - start fresh each time
   useEffect(() => {
@@ -24,36 +22,13 @@ export default function Home() {
     resetCandles();
   }, [resetReceipts, resetCandles]);
 
-  // Handle dynamic receipt limit based on window height
-  useEffect(() => {
-    const handleResize = () => {
-      // Dynamic calculation based on available height
-      // POS Terminal is approx 550px tall
-      // Each receipt is approx 200px tall
-      // We calculate how many receipts can fit in the remaining space
-      const posHeight = 550;
-      const receiptHeight = 200;
-      const availableHeight = window.innerHeight - posHeight;
-      const limit = Math.max(1, Math.floor(availableHeight / receiptHeight));
-      
-      setPosReceiptLimit(limit);
-    };
-
-    // Set initial limit
-    handleResize();
-
-    // Add event listener for window resize
-    window.addEventListener('resize', handleResize);
-
-    // Clean up event listener on component unmount
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [setPosReceiptLimit]);
-
-  // Initialize hooks for trade streaming and candle building
-  useTradeStream({ enabled: true });
-  useCandleBuilder();
+  // Initialize hooks for live data
+  // Live token data - DexScreener polling for price updates only
+  useLiveTokenData();
+  // Solana Tracker - Real-time candle data and receipt generation
+  useSolanaTrackerData();
+  // Note: Trade fetching is now handled on-demand in TerminalScreen
+  // via useTradeSnapshot hook (fetches at candle completion, not continuous polling)
 
   // Handle dark mode toggle
   useEffect(() => {

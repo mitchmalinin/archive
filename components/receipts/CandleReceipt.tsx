@@ -2,56 +2,40 @@
 
 import type { Candle } from '@/lib/types';
 import { formatPrice, formatSol, formatTimeShort, truncateWallet } from '@/lib/utils';
+import { useTokenStore } from '@/stores/tokenStore';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 interface CandleReceiptProps {
   candle: Candle;
   receiptNumber: number;
-  isExpanded?: boolean;
-  onToggleExpand?: (expanded: boolean) => void;
   isFirst?: boolean;
 }
 
-export function CandleReceipt({ candle, receiptNumber, isExpanded: controlledExpanded, onToggleExpand, isFirst }: CandleReceiptProps) {
-  // Use controlled state if provided, otherwise use local state
-  const [localExpanded, setLocalExpanded] = useState(false);
-  const isExpanded = controlledExpanded ?? localExpanded;
+export function CandleReceipt({ candle, receiptNumber, isFirst }: CandleReceiptProps) {
+  // Get token ticker from store
+  const selectedToken = useTokenStore((state) => state.selectedToken);
+  const tokenTicker = selectedToken?.symbol || 'TOKEN';
 
-  // Sync local state with controlled state on mount
-  useEffect(() => {
-    if (controlledExpanded !== undefined) {
-      setLocalExpanded(controlledExpanded);
-    }
-  }, [controlledExpanded]);
-
-  const handleToggle = () => {
-    const newValue = !isExpanded;
-    setLocalExpanded(newValue);
-    onToggleExpand?.(newValue);
-  };
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const change = ((candle.close - candle.open) / candle.open) * 100;
   const isPositive = change >= 0;
+  const hasTrades = candle.trades.length > 0;
 
   return (
     <div className="bg-[#fffdf5] dark:bg-[#e8e8e0] border-b-2 border-dashed border-gray-400 font-mono text-gray-800">
-      {/* Main Receipt Content - Clickable */}
+      {/* Main Receipt Content - Clickable if has trades */}
       <div
-        className={`p-3 lg:p-4 cursor-pointer hover:bg-black/5 transition-colors ${isFirst ? 'pt-14 lg:pt-4' : ''}`}
-        onClick={handleToggle}
+        className={`p-3 lg:p-4 ${isFirst ? 'pt-14 lg:pt-4' : ''} ${hasTrades ? 'cursor-pointer hover:bg-black/5 transition-colors' : ''}`}
+        onClick={() => hasTrades && setIsExpanded(!isExpanded)}
       >
-        {/* Whale indicator - if candle had a whale trade */}
-        {candle.hasWhale && (
-          <div className="text-center mb-2 pb-2 border-b border-dashed border-gray-400">
-            <div className="font-bold text-base tracking-wider">*** WHALE TRADE ***</div>
-          </div>
-        )}
-
         {/* Header row */}
         <div className="flex justify-between items-start mb-3">
           <div>
-            <div className="font-bold text-sm lg:text-base">RECEIPT #{String(receiptNumber).padStart(6, '0')}</div>
+            <div className="font-bold text-sm lg:text-base">
+              RECEIPT #{String(receiptNumber).padStart(6, '0')}
+            </div>
             <div className="text-xs text-gray-500">
               {formatTimeShort(candle.startTime)} → {formatTimeShort(candle.endTime)} UTC
             </div>
@@ -64,55 +48,108 @@ export function CandleReceipt({ candle, receiptNumber, isExpanded: controlledExp
         {/* Divider */}
         <div className="border-t border-dashed border-gray-300 mb-3" />
 
-        {/* OHLC Grid - larger text */}
-        <div className="grid grid-cols-2 gap-4 text-xs lg:text-sm font-mono mb-3">
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="opacity-60">OPEN</span>
-              <span className="font-semibold">{formatPrice(candle.open)}</span>
+        {/* Line items section */}
+        <div className="space-y-2 text-xs lg:text-sm font-mono mb-3">
+          {/* Ticker */}
+          <div className="flex items-baseline">
+            <span className="opacity-60">TICKER</span>
+            <span className="flex-1 border-b border-dotted border-gray-400 mx-2" />
+            <span className="font-bold text-gray-800">${tokenTicker.toUpperCase()}</span>
+          </div>
+
+          {/* Candle */}
+          <div>
+            <div className="flex items-baseline">
+              <span className="opacity-60">CANDLE</span>
+              <span className="flex-1 border-b border-dotted border-gray-400 mx-2" />
+              <span className="font-bold text-gray-800">
+                #{candle.candleNumber || receiptNumber}
+              </span>
             </div>
-            <div className="flex justify-between">
-              <span className="opacity-60">HIGH</span>
-              <span className="font-semibold">{formatPrice(candle.high)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="opacity-60">LOW</span>
-              <span className="font-semibold">{formatPrice(candle.low)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="opacity-60">CLOSE</span>
-              <span className="font-semibold">{formatPrice(candle.close)}</span>
+            <div className="flex justify-end text-[10px] opacity-80 mt-0.5">
+              {formatTimeShort(candle.startTime)} → {formatTimeShort(candle.endTime)} UTC
             </div>
           </div>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="opacity-60">VOLUME</span>
-              <span className="font-semibold">{candle.volume.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="opacity-60">TRADES</span>
-              <span className="font-semibold">{candle.tradeCount}</span>
-            </div>
-            <div className="flex justify-between text-green-700">
+
+          {/* Buys */}
+          <div className="text-green-700">
+            <div className="flex items-baseline">
               <span className="opacity-60">BUYS</span>
-              <span className="font-semibold">{candle.buyCount} ({candle.buyVolume.toFixed(1)})</span>
+              <span className="flex-1 border-b border-dotted border-green-300 mx-2" />
+              <span className="font-semibold">
+                {hasTrades ? `${candle.buyCount} orders` : '—'}
+              </span>
             </div>
-            <div className="flex justify-between text-red-700">
+            {hasTrades && candle.buyVolume > 0 && (
+              <div className="flex justify-end text-[10px] opacity-80 mt-0.5">
+                {candle.buyVolume.toFixed(2)} SOL
+              </div>
+            )}
+          </div>
+
+          {/* Sells */}
+          <div className="text-red-700">
+            <div className="flex items-baseline">
               <span className="opacity-60">SELLS</span>
-              <span className="font-semibold">{candle.sellCount} ({candle.sellVolume.toFixed(1)})</span>
+              <span className="flex-1 border-b border-dotted border-red-300 mx-2" />
+              <span className="font-semibold">
+                {hasTrades ? `${candle.sellCount} orders` : '—'}
+              </span>
+            </div>
+            {hasTrades && candle.sellVolume > 0 && (
+              <div className="flex justify-end text-[10px] opacity-80 mt-0.5">
+                {candle.sellVolume.toFixed(2)} SOL
+              </div>
+            )}
+          </div>
+
+          {/* Volume */}
+          <div className={isPositive ? 'text-green-700' : 'text-red-700'}>
+            <div className="flex items-baseline">
+              <span className="opacity-60">VOLUME</span>
+              <span className={`flex-1 border-b border-dotted ${isPositive ? 'border-green-300' : 'border-red-300'} mx-2`} />
+              <span className="font-semibold">
+                {candle.volume >= 1000000
+                  ? `$${(candle.volume / 1000000).toFixed(2)}M`
+                  : candle.volume >= 1000
+                    ? `$${(candle.volume / 1000).toFixed(2)}K`
+                    : `$${candle.volume.toFixed(2)}`}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Expand indicator */}
-        <div className="text-center text-xs text-gray-500 border-t border-dashed border-gray-300 pt-2">
-          [ {isExpanded ? 'HIDE ORDERS' : `VIEW ${candle.tradeCount} ORDERS`} ]
+        {/* OHLC Grid */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs lg:text-sm font-mono mb-3">
+          <div className="flex justify-between">
+            <span className="opacity-60">OPEN</span>
+            <span className="font-semibold">{formatPrice(candle.open)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="opacity-60">HIGH</span>
+            <span className="font-semibold">{formatPrice(candle.high)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="opacity-60">LOW</span>
+            <span className="font-semibold">{formatPrice(candle.low)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="opacity-60">CLOSE</span>
+            <span className="font-semibold">{formatPrice(candle.close)}</span>
+          </div>
         </div>
+
+        {/* Expand indicator - only show if there are trades to view */}
+        {hasTrades && (
+          <div className="text-center text-xs text-gray-500 border-t border-dashed border-gray-300 pt-2">
+            [ {isExpanded ? 'HIDE ORDERS' : `VIEW ${candle.trades.length} ORDERS`} ]
+          </div>
+        )}
       </div>
 
       {/* Expanded Trade List - Animated */}
       <AnimatePresence initial={false}>
-        {isExpanded && (
+        {isExpanded && hasTrades && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -140,14 +177,31 @@ export function CandleReceipt({ candle, receiptNumber, isExpanded: controlledExp
                     <span className={`font-semibold ${trade.side === 'buy' ? 'text-green-700' : 'text-red-700'}`}>
                       {trade.side.toUpperCase()}
                     </span>
-                    <span className="text-gray-400 text-[10px]">{truncateWallet(trade.wallet)}</span>
+                    {trade.signature ? (
+                      <a
+                        href={`https://solscan.io/tx/${trade.signature}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-700 hover:text-gray-900 text-[10px] underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {truncateWallet(trade.wallet)}
+                      </a>
+                    ) : (
+                      <span className="text-gray-400 text-[10px]">{truncateWallet(trade.wallet)}</span>
+                    )}
                   </div>
-                  {/* Bottom row: amount with dotted line */}
+                  {/* Bottom row: token amount and SOL value */}
                   <div className="flex items-baseline mt-0.5">
                     <span className="text-gray-400 text-[10px]">AMT</span>
                     <span className="flex-1 border-b border-dotted border-gray-300 mx-2" />
-                    <span className={`font-semibold ${trade.isWhale ? 'text-gray-900' : 'text-gray-700'}`}>
-                      {formatSol(trade.solAmount)} SOL
+                    <span className="font-semibold text-gray-700">
+                      {trade.tokenAmount >= 1000000
+                        ? `${(trade.tokenAmount / 1000000).toFixed(2)}M`
+                        : trade.tokenAmount >= 1000
+                          ? `${(trade.tokenAmount / 1000).toFixed(2)}K`
+                          : trade.tokenAmount.toFixed(2)
+                      } {tokenTicker} ({formatSol(trade.solAmount)} SOL)
                     </span>
                   </div>
                 </div>

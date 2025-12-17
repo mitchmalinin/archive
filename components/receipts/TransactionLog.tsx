@@ -1,27 +1,15 @@
 'use client';
 
-import type { Receipt } from '@/lib/types';
 import { useCandleStore } from '@/stores/candleStore';
-import { useReceiptStore } from '@/stores/receiptStore';
 import { ANIMATION_SPEEDS, useUIStore } from '@/stores/uiStore';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useCallback, useRef } from 'react';
+import { useRef } from 'react';
 import { CandleReceipt } from './CandleReceipt';
-
-// Store expanded state outside component to persist across re-renders
-const expandedState = new Map<string, boolean>();
 
 
 export function TransactionLog() {
-  const receipts = useReceiptStore((state) => state.receipts);
-  const addReceipt = useReceiptStore((state) => state.addReceipt);
-  const summaryCount = useReceiptStore((state) => state.summaryCount);
   const completedCandles = useCandleStore((state) => state.completedCandles);
-  const completeCandle = useCandleStore((state) => state.completeCandle);
-  const debugCreateCandle = useCandleStore((state) => state.debugCreateCandle);
   const animationSpeedIndex = useUIStore((state) => state.animationSpeedIndex);
-  const isPrinting = useUIStore((state) => state.isPrinting);
-  const cycleAnimationSpeed = useUIStore((state) => state.cycleAnimationSpeed);
   const posReceiptLimit = useUIStore((state) => state.posReceiptLimit);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -29,19 +17,6 @@ export function TransactionLog() {
   const displayCandles = completedCandles.slice(0, -posReceiptLimit).reverse();
 
   const currentSpeed = ANIMATION_SPEEDS[animationSpeedIndex];
-
-  // Debug: Print a test receipt
-  const handleDebugPrint = useCallback(() => {
-    const candle = debugCreateCandle();
-    completeCandle(candle);
-    // Receipt store update is handled by the store subscription/logic usually, 
-    // but here we just ensure candleStore is the source of truth for UI.
-  }, [debugCreateCandle, completeCandle]);
-
-  const getExpanded = useCallback((id: string) => expandedState.get(id) ?? false, []);
-  const setExpanded = useCallback((id: string, value: boolean) => {
-    expandedState.set(id, value);
-  }, []);
 
   return (
     <section className="hidden lg:flex flex-col bg-white dark:bg-[#121212] relative overflow-visible lg:overflow-hidden h-auto lg:h-full min-h-0 pl-0 lg:pl-32">
@@ -63,7 +38,7 @@ export function TransactionLog() {
             ref={scrollRef}
             className="h-auto lg:h-full overflow-visible lg:overflow-y-auto overflow-x-hidden flex justify-center"
           >
-            <div className="w-full max-w-[332px] px-6 lg:px-0">
+            <div className="w-full max-w-[300px] px-6 lg:px-0">
               {/* All receipts - newest first */}
               <AnimatePresence initial={false} mode="popLayout">
                 {displayCandles.map((candle, index) => {
@@ -95,8 +70,6 @@ export function TransactionLog() {
                           <CandleReceipt
                             candle={candle}
                             receiptNumber={receiptNumber}
-                            isExpanded={getExpanded(candle.id)}
-                            onToggleExpand={(expanded) => setExpanded(candle.id, expanded)}
                           />
                         </div>
                         {/* Torn edge only after Receipt #1 (the first receipt of the session) */}

@@ -12,12 +12,14 @@ interface CandleState {
   chartData: ChartCandle[];
   hoveredCandleId: string | null;
   isHydrated: boolean;
+  isLoadingHistory: boolean;
 
   // Actions
   setCurrentCandle: (candle: Candle) => void;
   updateCurrentCandle: (candle: Candle) => void;
   completeCandle: (candle: Candle) => void;
   setHoveredCandle: (id: string | null) => void;
+  loadHistoricalCandles: (candles: ChartCandle[]) => void;
   hydrate: () => void;
   reset: () => void;
   debugCreateCandle: () => Candle;
@@ -29,6 +31,7 @@ export const useCandleStore = create<CandleState>()((set, get) => ({
   chartData: [],
   hoveredCandleId: null,
   isHydrated: false,
+  isLoadingHistory: false,
 
   hydrate: () => {
     if (get().isHydrated) return;
@@ -94,6 +97,23 @@ export const useCandleStore = create<CandleState>()((set, get) => ({
       hoveredCandleId: id,
     }),
 
+  // Load historical candles directly into chartData (for external OHLCV data)
+  loadHistoricalCandles: (candles) => {
+    // Sort and dedupe by timestamp
+    const sorted = [...candles].sort((a, b) => a.time - b.time);
+    const deduped = sorted.filter(
+      (candle, index, arr) =>
+        index === 0 || candle.time !== arr[index - 1].time
+    );
+
+    set({
+      chartData: deduped.slice(-MAX_CANDLES),
+      // Don't clear completedCandles - preserve receipt history
+      currentCandle: null,
+      isLoadingHistory: false,
+    });
+  },
+
   reset: () => {
     storage.clearAll();
     set({
@@ -123,6 +143,7 @@ export const useCandleStore = create<CandleState>()((set, get) => ({
 
     const candle: Candle = {
       id: generateId(),
+      candleNumber: state.completedCandles.length + 1,
       startTime,
       endTime,
       open: basePrice,
@@ -136,7 +157,6 @@ export const useCandleStore = create<CandleState>()((set, get) => ({
       buyCount,
       sellCount,
       trades: [],
-      hasWhale: Math.random() < 0.1,
       fees: {
         total: volume * 0.01,
         creator: volume * 0.003,

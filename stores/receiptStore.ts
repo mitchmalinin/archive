@@ -9,7 +9,6 @@ interface ReceiptState {
   receipts: Receipt[];
   hoveredReceiptId: string | null;
   summaryCount: number;
-  whaleCount: number;
   isHydrated: boolean;
 
   // Actions
@@ -24,7 +23,6 @@ export const useReceiptStore = create<ReceiptState>()((set, get) => ({
   receipts: [],
   hoveredReceiptId: null,
   summaryCount: 0,
-  whaleCount: 0,
   isHydrated: false,
 
   hydrate: () => {
@@ -34,11 +32,9 @@ export const useReceiptStore = create<ReceiptState>()((set, get) => ({
     const savedSummaryCount = storage.loadSummaryCount();
 
     if (savedReceipts.length > 0) {
-      const whaleCount = savedReceipts.filter(r => r.type === 'whale').length;
       set({
         receipts: savedReceipts,
         summaryCount: savedSummaryCount,
-        whaleCount,
         isHydrated: true,
       });
     } else {
@@ -54,9 +50,7 @@ export const useReceiptStore = create<ReceiptState>()((set, get) => ({
       // Prune old receipts if exceeding limit
       const prunedReceipts = newReceipts.slice(0, MAX_RECEIPTS);
 
-      const newSummaryCount = receipt.type === 'summary'
-        ? state.summaryCount + 1
-        : state.summaryCount;
+      const newSummaryCount = state.summaryCount + 1;
 
       // Persist to localStorage
       storage.saveReceipts(prunedReceipts);
@@ -65,17 +59,13 @@ export const useReceiptStore = create<ReceiptState>()((set, get) => ({
       return {
         receipts: prunedReceipts,
         summaryCount: newSummaryCount,
-        whaleCount:
-          receipt.type === 'whale' ? state.whaleCount + 1 : state.whaleCount,
       };
     }),
 
   toggleReceiptExpanded: (id) =>
     set((state) => ({
       receipts: state.receipts.map((r) =>
-        r.id === id && r.type === 'summary'
-          ? { ...r, isExpanded: !r.isExpanded }
-          : r
+        r.id === id ? { ...r, isExpanded: !r.isExpanded } : r
       ),
     })),
 
@@ -90,7 +80,6 @@ export const useReceiptStore = create<ReceiptState>()((set, get) => ({
       receipts: [],
       hoveredReceiptId: null,
       summaryCount: 0,
-      whaleCount: 0,
     });
   },
 }));
