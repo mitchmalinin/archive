@@ -43,20 +43,24 @@ export function TransactionLog() {
               <AnimatePresence initial={false} mode="popLayout">
                 <motion.div
                   key={useTokenStore.getState().selectedToken?.address || 'empty'}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  variants={{
-                    enter: { opacity: 0 },
-                    center: { opacity: 1 },
-                    exit: {
-                      y: 800,
-                      opacity: 1,
-                      transition: { duration: 2, ease: [0.4, 0, 1, 1] },
-                    },
+                  initial={{ opacity: 1 }}
+                  animate={{ opacity: 1 }}
+                  exit={{
+                    y: 1200,
+                    opacity: 1,
+                    transition: { duration: 2, ease: [0.4, 0, 1, 1] },
                   }}
                   className="relative z-10"
                 >
+                  {/* Torn top edge - visible on exit */}
+                  {displayCandles.length > 0 && (
+                    <motion.div
+                      className="h-4 torn-edge-top w-full absolute -top-4 left-0 z-20"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 0 }}
+                      exit={{ opacity: 1, transition: { duration: 0 } }}
+                    />
+                  )}
                   {displayCandles.map((candle, index) => {
                     const receiptNumber = completedCandles.length - index;
                     return (
