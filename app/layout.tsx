@@ -9,8 +9,28 @@ const spaceMono = Space_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Meme Receipts | {token}',
-  description: 'Interactive trading interface for Solana token: {token}',
+  metadataBase: new URL('https://memereceipts.com'),
+  title: 'Meme Receipts',
+  description: 'Watch Solana meme coin trades print as receipts in real-time',
+  openGraph: {
+    title: 'Meme Receipts',
+    description: 'Watch Solana meme coin trades print as receipts in real-time',
+    images: [
+      {
+        url: '/link-preview.png',
+        width: 1200,
+        height: 630,
+        alt: 'Meme Receipts - Solana Token Receipt Printer',
+      },
+    ],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Meme Receipts',
+    description: 'Watch Solana meme coin trades print as receipts in real-time',
+    images: ['/link-preview.png'],
+  },
 }
 
 export default function RootLayout({

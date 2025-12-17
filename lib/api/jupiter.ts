@@ -33,16 +33,14 @@ export async function getTokenInfo(mintAddress: string): Promise<JupiterTokenInf
     const response = await fetch(`${JUPITER_API_BASE}/token/${mintAddress}`);
 
     if (!response.ok) {
-      // Token not found in Jupiter's registry is common
-      if (response.status === 404) {
-        return null;
-      }
-      throw new Error(`Jupiter token info failed: ${response.status}`);
+      // Token not found (404) or unauthorized (401) - silently fall back to DexScreener data
+      // This is expected for new tokens, pump.fun tokens, etc.
+      return null;
     }
 
     return await response.json();
-  } catch (error) {
-    console.error('Jupiter token info error:', error);
+  } catch {
+    // Network errors - silently fall back to DexScreener data
     return null;
   }
 }

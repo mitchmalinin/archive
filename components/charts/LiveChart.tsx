@@ -234,10 +234,10 @@ export function LiveChart({ onNewCandle }: LiveChartProps) {
   return (
     <div className="relative w-full h-full bg-black rounded overflow-hidden">
       {/* Top overlay - price on left, timeframe on right */}
-      <div className="absolute top-2 left-2 right-2 z-10 flex justify-between items-start">
+      <div className="absolute top-2 left-2 right-2 z-10 flex justify-between items-center">
         {/* Left: Ticker + Price + % change */}
         {currentPrice !== null && (
-          <div className="font-mono text-sm">
+          <div className="font-mono text-sm leading-none">
             <span className="text-gray-400 text-xs mr-2">{(selectedToken?.symbol || 'TOKEN').toUpperCase()}</span>
             <span className="text-white font-bold">${formatPrice(currentPrice)}</span>
             <span className={`ml-2 ${priceChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -247,7 +247,7 @@ export function LiveChart({ onNewCandle }: LiveChartProps) {
         )}
 
         {/* Right: Timeframe badge */}
-        <div className="bg-green-500/20 border border-green-500/50 px-2 py-0.5 rounded">
+        <div className="bg-green-500/20 border border-green-500/50 px-1.5 py-px rounded leading-none">
           <span className="text-green-400 font-mono text-xs font-bold">{chartTimeframe.toUpperCase()}</span>
         </div>
       </div>

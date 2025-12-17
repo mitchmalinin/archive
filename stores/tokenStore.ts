@@ -7,7 +7,6 @@ import {
   getTokenPairs,
   getBestPair,
 } from '@/lib/api/dexscreener';
-import { getTokenInfo } from '@/lib/api/jupiter';
 import { isValidSolanaAddress } from '@/lib/api/jupiter';
 import { useCandleStore } from './candleStore';
 import { useReceiptStore } from './receiptStore';
@@ -137,6 +136,7 @@ export const useTokenStore = create<TokenState>()(
         useCandleStore.getState().reset();
         useReceiptStore.getState().reset();
         useTradeStore.getState().clearTrades();
+        useUIStore.getState().resetPaper();
 
         try {
           // Fetch pairs from DexScreener
@@ -155,11 +155,8 @@ export const useTokenStore = create<TokenState>()(
             return false;
           }
 
-          // Try to get Jupiter token info for better metadata
-          const jupiterInfo = await getTokenInfo(tokenAddress);
-
-          // Create token info from either Jupiter or DexScreener data
-          const tokenInfo: JupiterTokenInfo = jupiterInfo || {
+          // Create token info from DexScreener data (skip Jupiter to avoid 401 noise)
+          const tokenInfo: JupiterTokenInfo = {
             address: tokenAddress,
             name: bestPair.baseToken.name,
             symbol: bestPair.baseToken.symbol,
@@ -213,15 +210,13 @@ export const useTokenStore = create<TokenState>()(
         useCandleStore.getState().reset();
         useReceiptStore.getState().reset();
         useTradeStore.getState().clearTrades();
+        useUIStore.getState().resetPaper();
 
         try {
           const tokenAddress = pair.baseToken.address;
 
-          // Get Jupiter info for verification status
-          const jupiterInfo = await getTokenInfo(tokenAddress);
-
-          // Create token info from Jupiter or pair data
-          const tokenInfo: JupiterTokenInfo = jupiterInfo || {
+          // Create token info from DexScreener pair data (skip Jupiter to avoid 401 noise)
+          const tokenInfo: JupiterTokenInfo = {
             address: tokenAddress,
             name: pair.baseToken.name,
             symbol: pair.baseToken.symbol,

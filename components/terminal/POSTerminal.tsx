@@ -1,9 +1,9 @@
 import { useSound } from '@/hooks/useSound'
 import type { Candle } from '@/lib/types'
 import {
-  formatPrice,
-  formatTimeShort,
-  getSecondsUntilNextCandle,
+    formatPrice,
+    formatTimeShort,
+    getSecondsUntilNextCandle,
 } from '@/lib/utils'
 import { useCandleStore } from '@/stores/candleStore'
 import { useReceiptStore } from '@/stores/receiptStore'
@@ -19,9 +19,11 @@ import { TerminalScreen } from './TerminalScreen'
 function CompletedReceipt({
   candle,
   receiptNumber,
+  isFirst,
 }: {
   candle: Candle
   receiptNumber: number
+  isFirst?: boolean
 }) {
   const selectedToken = useTokenStore((state) => state.selectedToken)
   const tokenTicker = selectedToken?.symbol || 'TOKEN'
@@ -29,8 +31,8 @@ function CompletedReceipt({
   const isPositive = change >= 0
 
   return (
-    <div className="bg-[#fffdf5] dark:bg-[#e8e8e0] shrink-0 border-b-2 border-dashed border-gray-400">
-      <div className="px-4 pt-12 pb-4 font-mono text-gray-800 h-full flex flex-col">
+    <div className="shrink-0 relative">
+      <div className={`bg-[#fffdf5] dark:bg-[#e8e8e0] border-b-2 border-dashed border-gray-400 px-4 ${isFirst ? 'pt-12' : 'pt-4'} pb-4 font-mono text-gray-800 h-full flex flex-col`}>
         {/* Header row */}
         <div className="flex justify-between items-start mb-3">
           <div>
@@ -152,69 +154,16 @@ function CompletedReceipt({
           </span>
         </div>
       </div>
+      
+      {isFirst && (
+        <div className="h-4 torn-edge-bottom relative z-10" />
+      )}
+
     </div>
   )
 }
 
-// Mobile Recording Header - separate box above POS
-function MobileRecordingHeader({
-  receiptNumber,
-  secondsRemaining,
-  candle,
-  hasToken,
-}: {
-  receiptNumber: number
-  secondsRemaining: number
-  candle: Candle | null
-  hasToken: boolean
-}) {
-  const change =
-    candle && candle.tradeCount > 0
-      ? ((candle.close - candle.open) / candle.open) * 100
-      : 0
-  const isPositive = change >= 0
 
-  return (
-    <div className="flex flex-col gap-2 bg-black text-green-500 px-4 py-3 rounded-lg border border-gray-800 shadow-lg mb-4 w-full max-w-[320px] lg:hidden relative overflow-hidden">
-      {/* Scanline effect */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 pointer-events-none bg-[length:100%_4px,3px_100%]" />
-
-      {/* Row 1: Live Feed & Timer */}
-      <div className="flex justify-between items-center relative z-10">
-        <div className={`flex items-center gap-2 text-[10px] font-mono ${hasToken ? 'text-green-500 bg-green-500/10 border-green-500/20' : 'text-gray-500 bg-gray-500/10 border-gray-500/20'} px-2 py-0.5 rounded-full border`}>
-          {hasToken && (
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="pulse-ring absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
-            </span>
-          )}
-          {hasToken ? 'LIVE FEED' : 'NO TOKEN'}
-        </div>
-        {hasToken && (
-          <div className="font-mono font-bold tabular-nums text-xs text-gray-400">
-            {secondsRemaining}s
-          </div>
-        )}
-      </div>
-
-      {/* Row 2: Receipt # & Price Stats */}
-      <div className="flex justify-between items-center relative z-10 border-t border-gray-800/50 pt-2 mt-1">
-        <div className="font-mono font-bold tracking-wider text-xs text-gray-300">
-          REC #{String(receiptNumber).padStart(6, '0')}
-        </div>
-        {candle && (
-          <div className="flex items-center gap-2 text-xs font-mono">
-            <span className="text-gray-300">{formatPrice(candle.close)}</span>
-            <span className={isPositive ? 'text-green-500' : 'text-red-500'}>
-              {isPositive ? '+' : ''}
-              {change.toFixed(2)}%
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
 
 export function POSTerminal() {
   const isPrinting = useUIStore((state) => state.isPrinting)
@@ -225,7 +174,7 @@ export function POSTerminal() {
   const summaryCount = useReceiptStore((state) => state.summaryCount)
   const posReceiptLimit = useUIStore((state) => state.posReceiptLimit)
   const selectedToken = useTokenStore((state) => state.selectedToken)
-  const { playReceiptPrinting, playButtonPress } = useSound()
+  const { playReceiptPrinting, playButtonPress, playReceiptTear } = useSound()
 
   // Track previous candle count to detect new receipts
   const prevCandleCount = useRef(completedCandles.length)
@@ -247,27 +196,23 @@ export function POSTerminal() {
   }, [chartTimeframe])
 
   // Play receipt printing sound when a new candle completes
+  // Play tear sound when candles are cleared (length decreases)
   useEffect(() => {
     if (completedCandles.length > prevCandleCount.current) {
       playReceiptPrinting()
+    } else if (completedCandles.length < prevCandleCount.current && prevCandleCount.current > 0) {
+      playReceiptTear()
     }
     prevCandleCount.current = completedCandles.length
-  }, [completedCandles.length, playReceiptPrinting])
+  }, [completedCandles.length, playReceiptPrinting, playReceiptTear])
 
   const animationDuration = ANIMATION_SPEEDS[animationSpeedIndex].duration
 
   return (
     <div className="relative flex flex-col h-auto lg:h-full">
       {/* Wrapper for Mobile - keeps POS and Header together */}
-      <div className="relative z-40 bg-[#e5e5e5] dark:bg-[#050505] pt-6 lg:static lg:bg-transparent lg:p-0 lg:z-auto w-full flex flex-col items-center">
-        {/* Mobile Recording Header */}
-        <MobileRecordingHeader
-          receiptNumber={summaryCount + 1}
-          secondsRemaining={secondsRemaining}
-          candle={currentCandle}
-          hasToken={!!selectedToken}
-        />
-
+      <div className="relative z-40 bg-[#e5e5e5] dark:bg-[#050505] pt-20 lg:static lg:bg-transparent lg:p-0 lg:z-auto w-full flex flex-col items-center">
+        
         {/* Terminal Body */}
         <motion.div
           className="bg-[#d4d4d8] dark:bg-[#1a1a1a] rounded-[2rem] p-4 lg:p-6 shadow-terminal border-b-8 border-r-4 border-gray-400 dark:border-black relative w-full shrink-0"
@@ -337,103 +282,139 @@ export function POSTerminal() {
       </div>
 
       {/* Receipt Paper Area */}
-      <div className="relative mx-6 -mt-9 z-20 h-auto lg:flex-1 lg:min-h-0 overflow-visible lg:overflow-hidden flex flex-col pb-12 lg:pb-0">
+      <div className="relative mx-6 -mt-9 z-20 h-auto lg:flex-1 lg:min-h-0 overflow-visible lg:overflow-hidden flex flex-col pb-12 lg:pb-0 pt-9 lg:pt-6">
         {/* Desktop View: Last {posReceiptLimit} receipts, non-interactive */}
         <div className="hidden lg:flex flex-col h-full">
           <AnimatePresence initial={false} mode="popLayout">
-            {completedCandles
-              .slice(-posReceiptLimit)
-              .reverse()
-              .map((candle, index) => {
-                const receiptNumber = completedCandles.length - index
-                return (
-                  <motion.div
-                    key={`desktop-${candle.id}`}
-                    layout
-                    initial={{ height: 0, opacity: 1 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{
-                      y: '100%',
-                      opacity: 0,
-                      transition: { duration: animationDuration },
-                    }}
-                    transition={{ duration: animationDuration, ease: 'linear' }}
-                    className="relative z-10 overflow-hidden shrink-0"
-                  >
+            <motion.div
+              key={selectedToken?.address || 'empty'}
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 1 }}
+              exit={{
+                y: 800,
+                opacity: 1,
+                transition: { duration: 2, ease: [0.4, 0, 1, 1] },
+              }}
+              className="relative z-10"
+            >
+              {/* Torn top edge - only visible when falling (exiting) */}
+              {completedCandles.length > 0 && (
+                <motion.div 
+                  className="h-4 torn-edge-top w-full absolute -top-4 left-0 z-20"
+                  variants={{
+                    initial: { opacity: 0 },
+                    animate: { opacity: 0 },
+                    exit: { opacity: 1, transition: { duration: 0 } }
+                  }}
+                />
+              )}
+
+              {completedCandles
+                .slice()
+                .reverse()
+                .map((candle, index) => {
+                  const receiptNumber = completedCandles.length - index
+
+                  return (
                     <motion.div
-                      initial={{ y: '-100%' }}
-                      animate={{ y: '0%' }}
-                      transition={{
-                        duration: animationDuration,
-                        ease: 'linear',
-                      }}
+                      key={`desktop-${candle.id}`}
+                      layout
+                      initial={{ height: 0, opacity: 1 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      transition={{ duration: animationDuration, ease: 'linear' }}
+                      className="relative z-10 shrink-0 origin-top -mb-[2px]"
                     >
-                      <div className="bg-[#fffdf5] dark:bg-[#e8e8e0]">
-                        <CompletedReceipt
-                          candle={candle}
-                          receiptNumber={receiptNumber}
-                        />
-                      </div>
+                      <motion.div
+                        initial={{ y: '-100%' }}
+                        animate={{ y: '0%' }}
+                        transition={{
+                          duration: animationDuration,
+                          ease: 'linear',
+                        }}
+                      >
+                        <div>
+                          <CompletedReceipt
+                            candle={candle}
+                            receiptNumber={receiptNumber}
+                            isFirst={receiptNumber === 1}
+                          />
+                        </div>
+                      </motion.div>
                     </motion.div>
-                    {receiptNumber === 1 && (
-                      <div className="h-4 torn-edge-bottom" />
-                    )}
-                  </motion.div>
-                )
-              })}
+                  )
+                })}
+            </motion.div>
           </AnimatePresence>
         </div>
 
         {/* Mobile View: All receipts, interactive */}
         <div className="lg:hidden flex flex-col">
           <AnimatePresence initial={false} mode="popLayout">
-            {completedCandles
-              .slice()
-              .reverse()
-              .map((candle, index) => {
-                // For full list reversed:
-                // index 0 is newest (summaryCount)
-                // index 1 is summaryCount - 1
-                const receiptNumber = summaryCount - index
+            <motion.div
+              key={selectedToken?.address || 'empty-mobile'}
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 1 }}
+              exit={{
+                y: 800,
+                opacity: 1,
+                transition: { duration: 2, ease: [0.4, 0, 1, 1] },
+              }}
+              className="relative z-10"
+            >
+              {/* Torn top edge - only visible when falling (exiting) */}
+              {completedCandles.length > 0 && (
+                <motion.div 
+                  className="h-4 torn-edge-top w-full absolute -top-4 left-[2px] z-20"
+                  variants={{
+                    initial: { opacity: 0 },
+                    animate: { opacity: 0 },
+                    exit: { opacity: 1, transition: { duration: 0 } }
+                  }}
+                />
+              )}
 
-                return (
-                  <motion.div
-                    key={`mobile-${candle.id}`}
-                    layout
-                    initial={{ height: 0, opacity: 1 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: animationDuration, ease: 'linear' }}
-                    className="relative z-10 overflow-hidden shrink-0"
-                  >
+              {completedCandles
+                .slice()
+                .reverse()
+                .map((candle, index) => {
+                  const receiptNumber = completedCandles.length - index
+
+                  return (
                     <motion.div
-                      initial={{ y: '-100%' }}
-                      animate={{ y: '0%' }}
-                      transition={{
-                        duration: animationDuration,
-                        ease: 'linear',
-                      }}
+                      key={`mobile-${candle.id}`}
+                      layout
+                      initial={{ height: 0, opacity: 1 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      transition={{ duration: animationDuration, ease: 'linear' }}
+                      className="relative z-10 shrink-0 origin-top"
                     >
-                      <div className="bg-[#fffdf5] dark:bg-[#e8e8e0]">
-                        <CandleReceipt
-                          candle={candle}
-                          receiptNumber={receiptNumber}
-                          isFirst={index === 0}
-                        />
-                      </div>
-                      {receiptNumber === 1 && (
-                        <div className="h-4 torn-edge-bottom" />
-                      )}
+                      <motion.div
+                        initial={{ y: '-100%' }}
+                        animate={{ y: '0%' }}
+                        transition={{
+                          duration: animationDuration,
+                          ease: 'linear',
+                        }}
+                      >
+                        <div>
+                          <CandleReceipt
+                            candle={candle}
+                            receiptNumber={receiptNumber}
+                            isFirst={receiptNumber === 1}
+                          />
+                        </div>
+                      </motion.div>
                     </motion.div>
-                  </motion.div>
-                )
-              })}
+                  )
+                })}
+            </motion.div>
           </AnimatePresence>
         </div>
 
         {/* Portal Shadow: Bottom overlay connecting to Transaction Log (Desktop Only) */}
         <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#e5e5e5]/60 dark:from-[#050505]/60 to-transparent pointer-events-none z-30 hidden lg:block" />
       </div>
+
     </div>
   )
 }

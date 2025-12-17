@@ -1,12 +1,12 @@
 'use client'
 
+import { getTrendingTokens, searchTokens as dexSearch, type DexPair } from '@/lib/api/dexscreener';
 import { formatPrice } from '@/lib/utils';
 import { useReceiptStore } from '@/stores/receiptStore';
 import { useTokenStore } from '@/stores/tokenStore';
 import { useUIStore } from '@/stores/uiStore';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { getTrendingTokens, type DexPair } from '@/lib/api/dexscreener';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function DesktopFloatingBar() {
   const { summaryCount } = useReceiptStore();
@@ -95,10 +95,13 @@ export function DesktopFloatingBar() {
 
   // Handle load button click
   const handleLoad = useCallback(async () => {
-    if (!inputValue.trim()) return;
+    const input = inputValue.trim();
+    if (!input) return;
 
     setShowDropdown(false);
-    const success = await loadToken(inputValue.trim());
+
+    // Always try to load as address first (this is the primary use case)
+    const success = await loadToken(input);
     if (success) {
       setInputValue('');
     }
@@ -118,12 +121,11 @@ export function DesktopFloatingBar() {
     <motion.div
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 w-[380px] pointer-events-auto"
+      className="absolute top-[20%] left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3 w-[380px] pointer-events-auto"
     >
       {/* Main Tracking Display */}
       <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-5 shadow-2xl relative overflow-hidden">
-        {/* Scanline effect */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 pointer-events-none bg-[length:100%_4px,3px_100%]" />
+
 
         {/* Top Row: Tracking status */}
         <div className="flex justify-between items-center mb-3 relative z-10">
@@ -145,9 +147,20 @@ export function DesktopFloatingBar() {
         {/* Large Ticker Display */}
         <div className="text-center py-4 relative z-10">
           {selectedToken ? (
-            <div className="font-mono text-4xl font-bold text-green-400 tracking-tight">
-              ${selectedToken.symbol.toUpperCase()}
-            </div>
+            <>
+              <div className="font-mono text-4xl font-bold text-green-400 tracking-tight">
+                ${selectedToken.symbol.toUpperCase()}
+              </div>
+              {selectedPair?.volume?.h24 && (
+                <div className="font-mono text-[10px] text-gray-500 mt-1">
+                  24h VOL: {selectedPair.volume.h24 >= 1000000
+                    ? `$${(selectedPair.volume.h24 / 1000000).toFixed(2)}M`
+                    : selectedPair.volume.h24 >= 1000
+                      ? `$${(selectedPair.volume.h24 / 1000).toFixed(0)}K`
+                      : `$${selectedPair.volume.h24.toFixed(0)}`}
+                </div>
+              )}
+            </>
           ) : (
             <div className="font-mono text-2xl font-bold text-gray-600 tracking-tight">
               SELECT TOKEN
@@ -212,6 +225,10 @@ export function DesktopFloatingBar() {
                 const liquidityLabel = liquidity >= 1000000 ? `$${(liquidity / 1000000).toFixed(1)}M` :
                                        liquidity >= 1000 ? `$${(liquidity / 1000).toFixed(0)}K` :
                                        `$${liquidity.toFixed(0)}`;
+                const volume = pair.volume?.h24 || 0;
+                const volumeLabel = volume >= 1000000 ? `$${(volume / 1000000).toFixed(1)}M` :
+                                    volume >= 1000 ? `$${(volume / 1000).toFixed(0)}K` :
+                                    `$${volume.toFixed(0)}`;
                 return (
                   <button
                     key={pair.pairAddress}
@@ -231,6 +248,9 @@ export function DesktopFloatingBar() {
                       <div className="text-right flex items-center gap-2">
                         <div className="font-mono text-[9px] text-blue-400/70">
                           LIQ {liquidityLabel}
+                        </div>
+                        <div className="font-mono text-[9px] text-purple-400/70">
+                          VOL {volumeLabel}
                         </div>
                         <div className={`font-mono text-[10px] ${
                           (pair.priceChange?.h24 || 0) >= 0 ? 'text-green-500' : 'text-red-500'
@@ -286,6 +306,10 @@ export function DesktopFloatingBar() {
               const liquidityLabel = liquidity >= 1000000 ? `$${(liquidity / 1000000).toFixed(1)}M` :
                                      liquidity >= 1000 ? `$${(liquidity / 1000).toFixed(0)}K` :
                                      `$${liquidity.toFixed(0)}`;
+              const volume = pair.volume?.h24 || 0;
+              const volumeLabel = volume >= 1000000 ? `$${(volume / 1000000).toFixed(1)}M` :
+                                  volume >= 1000 ? `$${(volume / 1000).toFixed(0)}K` :
+                                  `$${volume.toFixed(0)}`;
               return (
                 <button
                   key={pair.pairAddress}
@@ -304,6 +328,9 @@ export function DesktopFloatingBar() {
                     <div className="text-right flex items-center gap-2">
                       <div className="font-mono text-[9px] text-blue-400/70">
                         LIQ {liquidityLabel}
+                      </div>
+                      <div className="font-mono text-[9px] text-purple-400/70">
+                        VOL {volumeLabel}
                       </div>
                       <div className={`font-mono text-[10px] ${
                         (pair.priceChange?.h24 || 0) >= 0 ? 'text-green-500' : 'text-red-500'

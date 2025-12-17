@@ -1,6 +1,7 @@
 'use client';
 
 import { useCandleStore } from '@/stores/candleStore';
+import { useTokenStore } from '@/stores/tokenStore';
 import { ANIMATION_SPEEDS, useUIStore } from '@/stores/uiStore';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRef } from 'react';
@@ -41,45 +42,63 @@ export function TransactionLog() {
             <div className="w-full max-w-[300px] px-6 lg:px-0">
               {/* All receipts - newest first */}
               <AnimatePresence initial={false} mode="popLayout">
-                {displayCandles.map((candle, index) => {
-                  const receiptNumber = completedCandles.length - posReceiptLimit - index;
-                  return (
-                    <motion.div
-                      key={candle.id}
-                      layout
-                      // Outer wrapper handles space creation (height)
-                      initial={{ height: 0, opacity: 1 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0, transition: { duration: 0.3, ease: "easeInOut" } }}
-                      transition={{
-                        layout: { duration: currentSpeed.duration, ease: "linear" },
-                        height: { duration: currentSpeed.duration, ease: "linear" },
-                      }}
-                      className="mb-0 relative z-10 overflow-hidden"
-                    >
-                      {/* Inner wrapper handles the slide down effect */}
+                <motion.div
+                  key={useTokenStore.getState().selectedToken?.address || 'empty'}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  variants={{
+                    enter: { opacity: 0 },
+                    center: { opacity: 1 },
+                    exit: {
+                      y: 800,
+                      opacity: 1,
+                      transition: { duration: 2, ease: [0.4, 0, 1, 1] },
+                    },
+                  }}
+                  className="relative z-10"
+                >
+                  {displayCandles.map((candle, index) => {
+                    const receiptNumber = completedCandles.length - posReceiptLimit - index;
+                    return (
                       <motion.div
-                        initial={{ y: '-100%' }}
-                        animate={{ y: '0%' }}
-                        transition={{
-                          duration: currentSpeed.duration,
-                          ease: "linear"
+                        key={candle.id}
+                        layout
+                        initial="initial"
+                        animate="animate"
+                        variants={{
+                          initial: { height: 0, opacity: 1 },
+                          animate: { height: 'auto', opacity: 1 },
                         }}
+                        transition={{
+                          layout: { duration: currentSpeed.duration, ease: "linear" },
+                          height: { duration: currentSpeed.duration, ease: "linear" },
+                        }}
+                        className="mb-0 relative z-10 overflow-hidden origin-top -mb-[2px]"
                       >
-                        <div className="bg-[#fffdf5] dark:bg-[#e8e8e0] relative z-10 shadow-sm">
-                          <CandleReceipt
-                            candle={candle}
-                            receiptNumber={receiptNumber}
-                          />
-                        </div>
-                        {/* Torn edge only after Receipt #1 (the first receipt of the session) */}
-                        {receiptNumber === 1 && (
-                          <div className="h-4 torn-edge-bottom relative z-0" />
-                        )}
+                        {/* Inner wrapper handles the slide down effect */}
+                        <motion.div
+                          variants={{
+                            initial: { y: '-100%' },
+                            animate: { y: '0%' },
+                          }}
+                          transition={{
+                            duration: currentSpeed.duration,
+                            ease: "linear"
+                          }}
+                        >
+                          <div className="relative z-10 shadow-sm">
+                            <CandleReceipt
+                              candle={candle}
+                              receiptNumber={receiptNumber}
+                              isFirst={receiptNumber === 1}
+                            />
+                          </div>
+                        </motion.div>
                       </motion.div>
-                    </motion.div>
-                  );
-                })}
+                    );
+                  })}
+                </motion.div>
               </AnimatePresence>
 
               {/* Bottom spacing for scroll */}

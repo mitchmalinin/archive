@@ -7,6 +7,7 @@ import { useCallback, useRef } from 'react'
 const SOUNDS = {
   buttonPress: '/sounds/keyboard.mp3',
   receiptPrinting: '/sounds/recepit-printing.mp3',
+  tear: '/sounds/tear.m4a',
 } as const
 
 type SoundName = keyof typeof SOUNDS
@@ -50,5 +51,6 @@ export function useSound() {
     playButtonPress: useCallback(() => play('buttonPress'), [play]),
     playReceiptPrinting: useCallback(() => play('receiptPrinting'), [play]),
     stopReceiptPrinting: useCallback(() => stop('receiptPrinting'), [stop]),
+    playReceiptTear: useCallback(() => play('tear'), [play]),
   }
 }

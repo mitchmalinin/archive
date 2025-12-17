@@ -1,14 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
 import { LiveChart, type CandleData } from '@/components/charts/LiveChart';
-import { useTokenStore } from '@/stores/tokenStore';
-import { useUIStore, MAX_SESSION_RECEIPTS } from '@/stores/uiStore';
+import { useTradeSnapshot } from '@/hooks/useTradeSnapshot';
+import type { Candle, Trade } from '@/lib/types';
+import { generateId, getCandleDurationMs } from '@/lib/utils';
 import { useCandleStore } from '@/stores/candleStore';
 import { useReceiptStore } from '@/stores/receiptStore';
-import { useTradeSnapshot } from '@/hooks/useTradeSnapshot';
-import { generateId, getCandleDurationMs } from '@/lib/utils';
-import type { Candle, Trade } from '@/lib/types';
+import { useTokenStore } from '@/stores/tokenStore';
+import { MAX_SESSION_RECEIPTS, useUIStore } from '@/stores/uiStore';
+import { useCallback, useEffect, useRef } from 'react';
 
 // Convert chart candle data to our Candle format for receipts
 function convertChartCandleToReceipt(
@@ -157,8 +157,7 @@ export function TerminalScreen() {
 
   return (
     <div className="h-48 lg:h-80 bg-gray-900 rounded border border-gray-800 relative overflow-hidden">
-      {/* Scanlines overlay */}
-      <div className="scanlines absolute inset-0 pointer-events-none z-20 opacity-10" />
+
 
       {/* Custom Live Chart */}
       <div className="absolute inset-0">

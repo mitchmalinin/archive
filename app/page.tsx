@@ -3,24 +3,58 @@
 import { DesktopFloatingBar } from '@/components/layout/DesktopFloatingBar';
 import { Footer } from '@/components/layout/Footer';
 import { Header } from '@/components/layout/Header';
+import { MobileFloatingBar } from '@/components/layout/MobileFloatingBar';
 import { TransactionLog } from '@/components/receipts/TransactionLog';
 import { POSTerminal } from '@/components/terminal/POSTerminal';
 import { useLiveTokenData } from '@/hooks/useLiveTokenData';
 import { useSolanaTrackerData } from '@/hooks/useSolanaTrackerData';
 import { useCandleStore } from '@/stores/candleStore';
 import { useReceiptStore } from '@/stores/receiptStore';
-import { useEffect, useState } from 'react';
+import { useTokenStore } from '@/stores/tokenStore';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
 
-export default function Home() {
+function HomeContent() {
   const [isDark, setIsDark] = useState(true);
   const resetReceipts = useReceiptStore((state) => state.reset);
   const resetCandles = useCandleStore((state) => state.reset);
+  const selectedToken = useTokenStore((state) => state.selectedToken);
+  const loadToken = useTokenStore((state) => state.loadToken);
+  const searchParams = useSearchParams();
+  const hasLoadedFromUrl = useRef(false);
 
   // Clear all data on page refresh - start fresh each time
   useEffect(() => {
     resetReceipts();
     resetCandles();
   }, [resetReceipts, resetCandles]);
+
+  // Load token from URL parameter on mount
+  useEffect(() => {
+    const tokenParam = searchParams.get('token');
+    if (tokenParam && !hasLoadedFromUrl.current) {
+      hasLoadedFromUrl.current = true;
+      loadToken(tokenParam);
+    }
+  }, [searchParams, loadToken]);
+
+  // Update URL when token changes
+  useEffect(() => {
+    if (selectedToken) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('token', selectedToken.address);
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [selectedToken]);
+
+  // Update page title based on selected token
+  useEffect(() => {
+    if (selectedToken) {
+      document.title = `$${selectedToken.symbol.toUpperCase()} | Meme Receipts`;
+    } else {
+      document.title = 'Meme Receipts';
+    }
+  }, [selectedToken]);
 
   // Initialize hooks for live data
   // Live token data - DexScreener polling for price updates only
@@ -56,10 +90,15 @@ export default function Home() {
       </div>
 
       {/* Main Content */}
-      <main className="h-auto lg:flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 overflow-visible lg:overflow-hidden min-h-0 relative">
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 overflow-visible lg:overflow-hidden min-h-0 relative">
         {/* Desktop Floating Bar - Centered */}
         <div className="hidden lg:block absolute inset-0 pointer-events-none z-50">
           <DesktopFloatingBar />
+        </div>
+
+        {/* Mobile Floating Bar */}
+        <div className="lg:hidden absolute inset-0 pointer-events-none z-50">
+          <MobileFloatingBar />
         </div>
 
         {/* Left Panel - POS Terminal with Receipt Output */}
@@ -80,5 +119,13 @@ export default function Home() {
       {/* Footer */}
       <Footer />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="bg-[#0a0a0a] min-h-screen" />}>
+      <HomeContent />
+    </Suspense>
   );
 }
