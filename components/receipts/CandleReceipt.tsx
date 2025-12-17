@@ -26,7 +26,7 @@ export function CandleReceipt({ candle, receiptNumber, isFirst }: CandleReceiptP
   return (
     <div className="relative font-mono text-gray-800">
       {/* Paper Background Wrapper */}
-      <div className={`bg-[#fffdf5] dark:bg-[#e8e8e0] border-b-2 border-dashed border-gray-400 ${isFirst ? 'pt-14 lg:pt-4' : ''}`}>
+      <div className={`bg-[#fffdf5] dark:bg-[#e8e8e0] border-b-2 border-dashed border-gray-400 ${isFirst ? 'pt-4' : ''}`}>
         
         {/* Main Receipt Content - Clickable if has trades */}
         <div

@@ -59,6 +59,9 @@ interface UIState {
   chartTimeframe: ChartTimeframe;
   sessionReceiptCount: number;
   isOutOfPaper: boolean;
+  // Test receipt state (shows once on initial page load)
+  showTestReceipt: boolean;
+  receiptGenerationKey: number;
 
   // Actions
   setFilter: (filter: TradeFilter) => void;
@@ -71,6 +74,7 @@ interface UIState {
   setChartTimeframe: (timeframe: ChartTimeframe) => void;
   incrementSessionReceipts: () => void;
   resetPaper: () => void;
+  hideTestReceipt: () => void;
   reset: () => void;
 }
 
@@ -85,6 +89,8 @@ export const useUIStore = create<UIState>()((set) => ({
   chartTimeframe: '30s', // Default to 30 second candles
   sessionReceiptCount: 0,
   isOutOfPaper: false,
+  showTestReceipt: true, // Show test receipt on initial page load
+  receiptGenerationKey: 0,
 
   setFilter: (filter) =>
     set({
@@ -141,6 +147,12 @@ export const useUIStore = create<UIState>()((set) => ({
       isOutOfPaper: false,
     }),
 
+  hideTestReceipt: () =>
+    set((state) => ({
+      showTestReceipt: false,
+      receiptGenerationKey: state.receiptGenerationKey + 1,
+    })),
+
   reset: () =>
     set({
       filter: 'all',
@@ -153,5 +165,6 @@ export const useUIStore = create<UIState>()((set) => ({
       chartTimeframe: '30s',
       sessionReceiptCount: 0,
       isOutOfPaper: false,
+      // Note: showTestReceipt is NOT reset - it's a one-time thing per session
     }),
 }));

@@ -84,6 +84,13 @@ export function TerminalScreen() {
 
   // Handle new candle detected by chart - THIS IS THE SINGLE SOURCE OF TRUTH
   const handleNewCandle = useCallback(async (completedCandle: CandleData, newCandle: CandleData) => {
+    // Hide test receipt if showing (triggers fall animation)
+    const { showTestReceipt, hideTestReceipt } = useUIStore.getState();
+    if (showTestReceipt) {
+      hideTestReceipt();
+      await new Promise(resolve => setTimeout(resolve, 100)); // Let animation trigger
+    }
+
     // Don't print if out of paper
     if (isOutOfPaper) {
       console.log('[TerminalScreen] Out of paper - skipping receipt');

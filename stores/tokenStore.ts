@@ -130,6 +130,12 @@ export const useTokenStore = create<TokenState>()(
           return false;
         }
 
+        // Hide test receipt if showing (triggers fall animation)
+        const { showTestReceipt, hideTestReceipt } = useUIStore.getState();
+        if (showTestReceipt) {
+          hideTestReceipt();
+        }
+
         set({ isLoading: true, error: null });
 
         // Reset stores for fresh start
@@ -204,6 +210,12 @@ export const useTokenStore = create<TokenState>()(
 
       // Load token directly from a search result pair (no re-fetch needed)
       loadFromPair: async (pair) => {
+        // Hide test receipt if showing (triggers fall animation)
+        const { showTestReceipt, hideTestReceipt } = useUIStore.getState();
+        if (showTestReceipt) {
+          hideTestReceipt();
+        }
+
         set({ isLoading: true, error: null });
 
         // Reset stores for fresh start

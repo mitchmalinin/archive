@@ -12,6 +12,7 @@ import { ANIMATION_SPEEDS, useUIStore } from '@/stores/uiStore'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { CandleReceipt } from '../receipts/CandleReceipt'
+import { TestReceipt } from '../receipts/TestReceipt'
 import { TerminalKeypad } from './TerminalKeypad'
 import { TerminalScreen } from './TerminalScreen'
 
@@ -169,6 +170,8 @@ export function POSTerminal() {
   const isPrinting = useUIStore((state) => state.isPrinting)
   const animationSpeedIndex = useUIStore((state) => state.animationSpeedIndex)
   const chartTimeframe = useUIStore((state) => state.chartTimeframe)
+  const showTestReceipt = useUIStore((state) => state.showTestReceipt)
+  const receiptGenerationKey = useUIStore((state) => state.receiptGenerationKey)
   const currentCandle = useCandleStore((state) => state.currentCandle)
   const completedCandles = useCandleStore((state) => state.completedCandles)
   const summaryCount = useReceiptStore((state) => state.summaryCount)
@@ -178,6 +181,33 @@ export function POSTerminal() {
 
   // Track previous candle count to detect new receipts
   const prevCandleCount = useRef(completedCandles.length)
+
+  // Delay test receipt printing until POS terminal is visible
+  const [isTerminalReady, setIsTerminalReady] = useState(false)
+  useEffect(() => {
+    if (showTestReceipt && !isTerminalReady) {
+      const timer = setTimeout(() => {
+        setIsTerminalReady(true)
+        playReceiptPrinting() // Play sound when test receipt starts printing
+      }, 2000) // Wait for POS terminal entrance animation (0.8s) + 1.2s after visible
+      return () => clearTimeout(timer)
+    }
+  }, [showTestReceipt, isTerminalReady, playReceiptPrinting])
+
+  // Keep rendering test receipt during exit animation (2s fall)
+  // This prevents content from disappearing before the animation completes
+  const [shouldRenderTestReceipt, setShouldRenderTestReceipt] = useState(showTestReceipt)
+  useEffect(() => {
+    if (!showTestReceipt && shouldRenderTestReceipt) {
+      // Store says hide, but keep rendering for exit animation duration
+      const timer = setTimeout(() => {
+        setShouldRenderTestReceipt(false)
+      }, 2000) // Match exit animation duration
+      return () => clearTimeout(timer)
+    } else if (showTestReceipt && !shouldRenderTestReceipt) {
+      setShouldRenderTestReceipt(true)
+    }
+  }, [showTestReceipt, shouldRenderTestReceipt])
 
   // Wall-clock based timer state
   const [secondsRemaining, setSecondsRemaining] = useState(() =>
@@ -288,132 +318,204 @@ export function POSTerminal() {
 
       {/* Receipt Paper Area */}
       <div className="relative mx-6 -mt-9 z-20 h-auto lg:flex-1 lg:min-h-0 overflow-visible lg:overflow-hidden flex flex-col pb-12 lg:pb-0 pt-9 lg:pt-6">
-        {/* Desktop View: Last {posReceiptLimit} receipts, non-interactive */}
+        {/* Desktop View */}
         <div className="hidden lg:flex flex-col h-full">
-          <AnimatePresence initial={false} mode="popLayout">
-            <motion.div
-              key={selectedToken?.address || 'empty'}
-              initial={{ opacity: 1 }}
-              animate={{ opacity: 1 }}
-              exit={{
-                y: 800,
-                opacity: 1,
-                transition: { duration: 2, ease: [0.4, 0, 1, 1] },
-              }}
-              className="relative z-10"
-            >
-              {/* Torn top edge - only visible when falling (exiting) */}
-              {completedCandles.length > 0 && (
-                <motion.div 
+          {/* Test Receipt - exits immediately when showTestReceipt becomes false */}
+          <AnimatePresence>
+            {showTestReceipt && isTerminalReady && (
+              <motion.div
+                key="test-receipt-desktop"
+                initial={{ height: 0 }}
+                animate={{ height: 'auto' }}
+                exit={{
+                  y: 800,
+                  opacity: 1,
+                  transition: { duration: 2, ease: [0.4, 0, 1, 1] },
+                }}
+                transition={{ duration: animationDuration, ease: 'linear' }}
+                className="relative z-10 shrink-0 origin-top -mb-[2px]"
+              >
+                {/* Torn top edge - visible on exit (outside overflow-hidden) */}
+                <motion.div
                   className="h-4 torn-edge-top w-full absolute -top-4 left-0 z-20"
-                  variants={{
-                    initial: { opacity: 0 },
-                    animate: { opacity: 0 },
-                    exit: { opacity: 1, transition: { duration: 0 } }
-                  }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0 }}
+                  exit={{ opacity: 1, transition: { duration: 0 } }}
                 />
-              )}
-
-              {completedCandles
-                .slice()
-                .reverse()
-                .map((candle, index) => {
-                  const receiptNumber = completedCandles.length - index
-
-                  return (
-                    <motion.div
-                      key={`desktop-${candle.id}`}
-                      layout
-                      initial={{ height: 0, opacity: 1 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      transition={{ duration: animationDuration, ease: 'linear' }}
-                      className="relative z-10 shrink-0 origin-top -mb-[2px]"
-                    >
-                      <motion.div
-                        initial={{ y: '-100%' }}
-                        animate={{ y: '0%' }}
-                        transition={{
-                          duration: animationDuration,
-                          ease: 'linear',
-                        }}
-                      >
-                        <div>
-                          <CompletedReceipt
-                            candle={candle}
-                            receiptNumber={receiptNumber}
-                            isFirst={receiptNumber === 1}
-                          />
-                        </div>
-                      </motion.div>
-                    </motion.div>
-                  )
-                })}
-            </motion.div>
+                {/* Inner container with overflow-hidden for print animation */}
+                <div className="overflow-hidden">
+                  <motion.div
+                    initial={{ y: '-100%' }}
+                    animate={{ y: '0%' }}
+                    transition={{
+                      duration: animationDuration,
+                      ease: 'linear',
+                    }}
+                  >
+                    <TestReceipt />
+                  </motion.div>
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
+
+          {/* Regular Receipts - appear after test receipt exit completes (2s delay) */}
+          {!shouldRenderTestReceipt && (
+            <AnimatePresence mode="popLayout">
+              <motion.div
+                key={`${selectedToken?.address || 'empty'}-${receiptGenerationKey}`}
+                initial={{ opacity: 1 }}
+                animate={{ opacity: 1 }}
+                exit={{
+                  y: 800,
+                  opacity: 1,
+                  transition: { duration: 2, ease: [0.4, 0, 1, 1] },
+                }}
+                className="relative z-10"
+              >
+                {completedCandles.length > 0 && (
+                  <motion.div
+                    className="h-4 torn-edge-top w-full absolute -top-4 left-0 z-20"
+                    variants={{
+                      initial: { opacity: 0 },
+                      animate: { opacity: 0 },
+                      exit: { opacity: 1, transition: { duration: 0 } }
+                    }}
+                  />
+                )}
+                {completedCandles
+                  .slice()
+                  .reverse()
+                  .map((candle, index) => {
+                    const receiptNumber = completedCandles.length - index
+                    return (
+                      <motion.div
+                        key={`desktop-${candle.id}`}
+                        layout
+                        initial={{ height: 0, opacity: 1 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        transition={{ duration: animationDuration, ease: 'linear' }}
+                        className="relative z-10 shrink-0 origin-top -mb-[2px]"
+                      >
+                        <motion.div
+                          initial={{ y: '-100%' }}
+                          animate={{ y: '0%' }}
+                          transition={{ duration: animationDuration, ease: 'linear' }}
+                        >
+                          <div>
+                            <CompletedReceipt
+                              candle={candle}
+                              receiptNumber={receiptNumber}
+                              isFirst={receiptNumber === 1}
+                            />
+                          </div>
+                        </motion.div>
+                      </motion.div>
+                    )
+                  })}
+              </motion.div>
+            </AnimatePresence>
+          )}
         </div>
 
-        {/* Mobile View: All receipts, interactive */}
+        {/* Mobile View */}
         <div className="lg:hidden flex flex-col">
-          <AnimatePresence initial={false} mode="popLayout">
-            <motion.div
-              key={selectedToken?.address || 'empty-mobile'}
-              initial={{ opacity: 1 }}
-              animate={{ opacity: 1 }}
-              exit={{
-                y: 800,
-                opacity: 1,
-                transition: { duration: 2, ease: [0.4, 0, 1, 1] },
-              }}
-              className="relative z-10"
-            >
-              {/* Torn top edge - only visible when falling (exiting) */}
-              {completedCandles.length > 0 && (
-                <motion.div 
+          {/* Test Receipt - exits immediately when showTestReceipt becomes false */}
+          <AnimatePresence>
+            {showTestReceipt && isTerminalReady && (
+              <motion.div
+                key="test-receipt-mobile"
+                initial={{ height: 0 }}
+                animate={{ height: 'auto' }}
+                exit={{
+                  y: 800,
+                  opacity: 1,
+                  transition: { duration: 2, ease: [0.4, 0, 1, 1] },
+                }}
+                transition={{ duration: animationDuration, ease: 'linear' }}
+                className="relative z-10 shrink-0 origin-top"
+              >
+                {/* Torn top edge - visible on exit (outside overflow-hidden) */}
+                <motion.div
                   className="h-4 torn-edge-top w-full absolute -top-4 left-[2px] z-20"
-                  variants={{
-                    initial: { opacity: 0 },
-                    animate: { opacity: 0 },
-                    exit: { opacity: 1, transition: { duration: 0 } }
-                  }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0 }}
+                  exit={{ opacity: 1, transition: { duration: 0 } }}
                 />
-              )}
-
-              {completedCandles
-                .slice()
-                .reverse()
-                .map((candle, index) => {
-                  const receiptNumber = completedCandles.length - index
-
-                  return (
-                    <motion.div
-                      key={`mobile-${candle.id}`}
-                      layout
-                      initial={{ height: 0, opacity: 1 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      transition={{ duration: animationDuration, ease: 'linear' }}
-                      className="relative z-10 shrink-0 origin-top"
-                    >
-                      <motion.div
-                        initial={{ y: '-100%' }}
-                        animate={{ y: '0%' }}
-                        transition={{
-                          duration: animationDuration,
-                          ease: 'linear',
-                        }}
-                      >
-                        <div>
-                          <CandleReceipt
-                            candle={candle}
-                            receiptNumber={receiptNumber}
-                            isFirst={receiptNumber === 1}
-                          />
-                        </div>
-                      </motion.div>
-                    </motion.div>
-                  )
-                })}
-            </motion.div>
+                {/* Inner container with overflow-hidden for print animation */}
+                <div className="overflow-hidden">
+                  <motion.div
+                    initial={{ y: '-100%' }}
+                    animate={{ y: '0%' }}
+                    transition={{
+                      duration: animationDuration,
+                      ease: 'linear',
+                    }}
+                  >
+                    <TestReceipt />
+                  </motion.div>
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
+
+          {/* Regular Receipts - appear after test receipt exit completes (2s delay) */}
+          {!shouldRenderTestReceipt && (
+            <AnimatePresence mode="popLayout">
+              <motion.div
+                key={`${selectedToken?.address || 'empty'}-${receiptGenerationKey}-mobile`}
+                initial={{ opacity: 1 }}
+                animate={{ opacity: 1 }}
+                exit={{
+                  y: 800,
+                  opacity: 1,
+                  transition: { duration: 2, ease: [0.4, 0, 1, 1] },
+                }}
+                className="relative z-10"
+              >
+                {completedCandles.length > 0 && (
+                  <motion.div
+                    className="h-4 torn-edge-top w-full absolute -top-4 left-[2px] z-20"
+                    variants={{
+                      initial: { opacity: 0 },
+                      animate: { opacity: 0 },
+                      exit: { opacity: 1, transition: { duration: 0 } }
+                    }}
+                  />
+                )}
+                {completedCandles
+                  .slice()
+                  .reverse()
+                  .map((candle, index) => {
+                    const receiptNumber = completedCandles.length - index
+                    return (
+                      <motion.div
+                        key={`mobile-${candle.id}`}
+                        layout
+                        initial={{ height: 0, opacity: 1 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        transition={{ duration: animationDuration, ease: 'linear' }}
+                        className="relative z-10 shrink-0 origin-top"
+                      >
+                        <motion.div
+                          initial={{ y: '-100%' }}
+                          animate={{ y: '0%' }}
+                          transition={{ duration: animationDuration, ease: 'linear' }}
+                        >
+                          <div>
+                            <CandleReceipt
+                              candle={candle}
+                              receiptNumber={receiptNumber}
+                              isFirst={receiptNumber === 1}
+                            />
+                          </div>
+                        </motion.div>
+                      </motion.div>
+                    )
+                  })}
+              </motion.div>
+            </AnimatePresence>
+          )}
         </div>
 
         {/* Portal Shadow: Bottom overlay connecting to Transaction Log (Desktop Only) */}

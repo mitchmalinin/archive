@@ -26,7 +26,7 @@ export function useSound() {
   }, [])
 
   const play = useCallback(
-    (name: SoundName) => {
+    (name: SoundName, maxDuration?: number) => {
       if (isMuted) return
 
       const audio = getAudio(name)
@@ -35,6 +35,14 @@ export function useSound() {
       audio.play().catch(() => {
         // Ignore autoplay errors
       })
+
+      // Stop after max duration if specified
+      if (maxDuration) {
+        setTimeout(() => {
+          audio.pause()
+          audio.currentTime = 0
+        }, maxDuration)
+      }
     },
     [isMuted, getAudio]
   )
@@ -49,7 +57,7 @@ export function useSound() {
 
   return {
     playButtonPress: useCallback(() => play('buttonPress'), [play]),
-    playReceiptPrinting: useCallback(() => play('receiptPrinting'), [play]),
+    playReceiptPrinting: useCallback(() => play('receiptPrinting', 2600), [play]), // Stop after 2.6s
     stopReceiptPrinting: useCallback(() => stop('receiptPrinting'), [stop]),
     playReceiptTear: useCallback(() => play('tear'), [play]),
   }
