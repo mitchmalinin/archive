@@ -1,5 +1,5 @@
-import { create } from 'zustand';
 import type { TradeFilter } from '@/lib/types';
+import { create } from 'zustand';
 
 type PrintPhase = 'printing' | 'ejecting';
 
@@ -19,6 +19,7 @@ interface UIState {
   isPrinting: boolean;
   printPhase: PrintPhase;
   animationSpeedIndex: number;
+  posReceiptLimit: number;
 
   // Actions
   setFilter: (filter: TradeFilter) => void;
@@ -26,6 +27,8 @@ interface UIState {
   setIsPrinting: (value: boolean) => void;
   setPrintPhase: (phase: PrintPhase) => void;
   cycleAnimationSpeed: () => void;
+  setSecondsRemaining: (value: number) => void;
+  setPosReceiptLimit: (limit: number) => void;
   reset: () => void;
 }
 
@@ -35,6 +38,8 @@ export const useUIStore = create<UIState>()((set) => ({
   isPrinting: false,
   printPhase: 'printing',
   animationSpeedIndex: 3, // Default to 1x (2 seconds)
+  secondsRemaining: 15,
+  posReceiptLimit: 2,
 
   setFilter: (filter) =>
     set({
@@ -61,6 +66,16 @@ export const useUIStore = create<UIState>()((set) => ({
       animationSpeedIndex: (state.animationSpeedIndex + 1) % ANIMATION_SPEEDS.length,
     })),
 
+  setSecondsRemaining: (value) =>
+    set({
+      secondsRemaining: value,
+    }),
+
+  setPosReceiptLimit: (limit) =>
+    set({
+      posReceiptLimit: limit,
+    }),
+
   reset: () =>
     set({
       filter: 'all',
@@ -68,5 +83,7 @@ export const useUIStore = create<UIState>()((set) => ({
       isPrinting: false,
       printPhase: 'printing',
       animationSpeedIndex: 3,
+      secondsRemaining: 15,
+      posReceiptLimit: 2,
     }),
 }));

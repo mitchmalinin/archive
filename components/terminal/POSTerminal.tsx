@@ -4,87 +4,10 @@ import { useCandleStore } from '@/stores/candleStore';
 import { useReceiptStore } from '@/stores/receiptStore';
 import { ANIMATION_SPEEDS, useUIStore } from '@/stores/uiStore';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { CandleReceipt } from '../receipts/CandleReceipt';
 import { TerminalKeypad } from './TerminalKeypad';
 import { TerminalScreen } from './TerminalScreen';
-
-// Attached LCD Display - customer-facing pole display showing live stats
-function AttachedLCDDisplay({
-  candle,
-  receiptNumber,
-  secondsRemaining
-}: {
-  candle: Candle | null;
-  receiptNumber: number;
-  secondsRemaining: number;
-}) {
-  const change = candle && candle.tradeCount > 0
-    ? ((candle.close - candle.open) / candle.open) * 100
-    : 0;
-  const isPositive = change >= 0;
-
-  return (
-    <div className="relative mx-auto w-full max-w-[340px]">
-      {/* Pole/stand connecting to terminal */}
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-0 w-3 h-8 bg-gray-400 dark:bg-gray-700 z-0" />
-
-      {/* LCD Screen housing - fixed height to prevent layout shifts */}
-      <div className="relative z-10 bg-[#2a2a2a] rounded-lg p-1 shadow-lg border-2 border-gray-600 dark:border-gray-800">
-        {/* Screen bezel */}
-        <div className="bg-[#1a1a1a] rounded p-3 h-[140px]">
-          {/* LCD content - green on black like old displays */}
-          <div className="font-mono text-green-400 text-sm h-full flex flex-col">
-            {/* Header row */}
-            <div className="flex justify-between items-center mb-2 pb-2 border-b border-green-900">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-xs">RECORDING #{String(receiptNumber).padStart(6, '0')}</span>
-              </div>
-              <div className="text-xs tabular-nums">{secondsRemaining}s</div>
-            </div>
-
-            {candle && candle.tradeCount > 0 ? (
-              <div className="flex-1 flex flex-col justify-between">
-                {/* Price row */}
-                <div className="flex justify-between items-baseline">
-                  <span className="text-2xl font-bold tracking-tight">{formatPrice(candle.close)}</span>
-                  <span className={`text-lg font-bold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-                    {isPositive ? '+' : ''}{change.toFixed(2)}%
-                  </span>
-                </div>
-
-                {/* Stats row */}
-                <div className="grid grid-cols-4 gap-2 text-xs text-center">
-                  <div>
-                    <div className="text-green-600">TRADES</div>
-                    <div className="font-bold">{candle.tradeCount}</div>
-                  </div>
-                  <div>
-                    <div className="text-green-600">BUYS</div>
-                    <div className="font-bold">{candle.buyCount}</div>
-                  </div>
-                  <div>
-                    <div className="text-green-600">SELLS</div>
-                    <div className="font-bold">{candle.sellCount}</div>
-                  </div>
-                  <div>
-                    <div className="text-green-600">VOL</div>
-                    <div className="font-bold">{candle.volume.toFixed(2)}</div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-green-600">
-                WAITING FOR TRADES...
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // Completed receipt - larger text with clear borders
 function CompletedReceipt({
@@ -101,7 +24,7 @@ function CompletedReceipt({
     <div
       className="bg-[#fffdf5] dark:bg-[#e8e8e0] shrink-0 border-b-2 border-dashed border-gray-400"
     >
-      <div className="px-4 pt-6 pb-4 font-mono text-gray-800 h-full flex flex-col">
+      <div className="px-4 pt-12 pb-4 font-mono text-gray-800 h-full flex flex-col">
         {/* Whale indicator */}
         {candle.hasWhale && (
           <div className="text-center mb-2 pb-2 border-b border-dashed border-gray-400">
@@ -232,6 +155,7 @@ export function POSTerminal() {
   const currentCandle = useCandleStore((state) => state.currentCandle);
   const completedCandles = useCandleStore((state) => state.completedCandles);
   const summaryCount = useReceiptStore((state) => state.summaryCount);
+  const posReceiptLimit = useUIStore((state) => state.posReceiptLimit);
 
   // State for expanded receipts on mobile
   const [expandedReceipts, setExpandedReceipts] = useState<Set<string>>(new Set());
@@ -255,14 +179,7 @@ export function POSTerminal() {
 
   return (
     <div className="relative flex flex-col h-auto lg:h-full">
-      {/* Attached LCD Display - shows live stats (Desktop Only) */}
-      <div className="shrink-0 pb-6 hidden lg:block">
-        <AttachedLCDDisplay
-          candle={currentCandle}
-          receiptNumber={summaryCount + 1}
-          secondsRemaining={secondsRemaining}
-        />
-      </div>
+
 
       {/* Wrapper for Mobile - keeps POS and Header together */}
       <div className="relative z-40 bg-[#e5e5e5] dark:bg-[#050505] pt-6 lg:static lg:bg-transparent lg:p-0 lg:z-auto w-full flex flex-col items-center">
@@ -335,18 +252,18 @@ export function POSTerminal() {
       {/* Receipt Paper Area */}
       <div className="relative mx-6 -mt-9 z-20 h-auto lg:flex-1 lg:min-h-0 overflow-visible lg:overflow-hidden flex flex-col pb-12 lg:pb-0">
         
-        {/* Desktop View: Last 3 receipts, non-interactive */}
+        {/* Desktop View: Last {posReceiptLimit} receipts, non-interactive */}
         <div className="hidden lg:flex flex-col h-full">
           <AnimatePresence initial={false} mode="popLayout">
-            {completedCandles.slice(-3).reverse().map((candle, index) => {
-              const receiptNumber = summaryCount - index;
+            {completedCandles.slice(-posReceiptLimit).reverse().map((candle, index) => {
+              const receiptNumber = completedCandles.length - index;
               return (
                 <motion.div
                   key={`desktop-${candle.id}`}
                   layout
                   initial={{ height: 0, opacity: 1 }}
                   animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ y: '100%', transition: { duration: animationDuration } }}
+                  exit={{ y: '100%', opacity: 0, transition: { duration: animationDuration } }}
                   transition={{ duration: animationDuration, ease: 'linear' }}
                   className="relative z-10 overflow-hidden shrink-0"
                 >
@@ -358,8 +275,8 @@ export function POSTerminal() {
                     <div className="bg-[#fffdf5] dark:bg-[#e8e8e0]">
                       <CompletedReceipt candle={candle} receiptNumber={receiptNumber} />
                     </div>
-                    {receiptNumber === 1 && <div className="h-4 torn-edge-bottom" />}
                   </motion.div>
+                  {receiptNumber === 1 && <div className="h-4 torn-edge-bottom" />}
                 </motion.div>
               );
             })}

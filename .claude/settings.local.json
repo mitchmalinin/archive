@@ -7,7 +7,8 @@
       "Bash(git add:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nAdd POS terminal receipt printing interface with animations\n\n- Implement two-column layout with POS terminal (left) and transaction log (right)\n- Add candlestick chart using lightweight-charts library\n- Create receipt printing animation with Framer Motion\n- Add Zustand stores for trades, candles, receipts, and UI state\n- Implement mock trade stream and candle builder hooks\n- Add dev controls for animation speed toggle and manual print button\n- Style receipts with thermal paper aesthetic and torn edge effects\n- Add localStorage persistence for candles\n- Fix chart data ordering and deduplication issues\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git push)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nFix receipt animation and styling refinements\n\n- Update TransactionLog animation to use nested wrappers (height + slide)\n- Add AnimatePresence with popLayout mode for smoother transitions\n- Refine shadow gradients and z-index layering\n- Minor styling adjustments to receipts and terminal\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")"
+      "Bash(git commit -m \"$(cat <<''EOF''\nFix receipt animation and styling refinements\n\n- Update TransactionLog animation to use nested wrappers (height + slide)\n- Add AnimatePresence with popLayout mode for smoother transitions\n- Refine shadow gradients and z-index layering\n- Minor styling adjustments to receipts and terminal\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit:*)"
     ]
   }
 }
