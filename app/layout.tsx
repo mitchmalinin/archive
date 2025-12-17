@@ -9,7 +9,7 @@ const spaceMono = Space_Mono({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://memereceipts.com'),
+  metadataBase: new URL('https://meme-receipts.com'),
   title: 'Meme Receipts',
   description: 'Watch Solana meme coin trades print as receipts in real-time',
   icons: {
@@ -22,11 +22,11 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Meme Receipts',
     description: 'Watch Solana meme coin trades print as receipts in real-time',
-    url: 'https://memereceipts.com',
+    url: 'https://meme-receipts.com',
     siteName: 'Meme Receipts',
     images: [
       {
-        url: '/link-preview.png',
+        url: 'https://meme-receipts.com/link-preview.png',
         width: 1200,
         height: 630,
         alt: 'Meme Receipts - Solana Token Receipt Printer',
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Meme Receipts',
     description: 'Watch Solana meme coin trades print as receipts in real-time',
-    images: ['/link-preview.png'],
+    images: ['https://meme-receipts.com/link-preview.png'],
   },
 }
 
